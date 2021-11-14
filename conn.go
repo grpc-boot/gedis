@@ -19,14 +19,14 @@ type Conn interface {
 	Expire(key interface{}, second int64) (success int, err error)
 	ExpireAt(key interface{}, unixTime int64) (success int, err error)
 	Ttl(key interface{}) (second int64, err error)
-	Persist(key interface{}) (ok int, err error)
+	Persist(key interface{}) (success int, err error)
 	Scan(cursor int, match string, count int) (newCursor int, keys []string, err error)
 	Keys(pattern string) (keys []string, err error)
 	Dump(key string) (serializedValue string, err error)
 	Restore(key string, pttl int64, serializedValue string) (ok bool, err error)
 	Move(key string, db int) (success int, err error)
 	RandomKey() (key string, err error)
-	ReName(key string, newKey string) (success bool, err error)
+	ReName(key string, newKey string) (ok bool, err error)
 	ReNameNx(key string, newKey string) (success int, err error)
 	Type(key string) (t string, err error)
 
@@ -37,6 +37,11 @@ type Conn interface {
 	Incr(key string) (val int64, err error)
 	IncrBy(key string, increment int) (val int64, err error)
 	IncrByFloat(key string, increment float64) (val float64, err error)
+	SetRange(key string, offset int, val string) (strLength int, err error)
+	GetRange(key string, start, end int) (val string, err error)
+	SetBit(key string, offset int, bit int8) (oldBit int, err error)
+	GetBit(key string, offset int) (bit int, err error)
+	BitCount(key string, args ...interface{}) (num int, err error)
 }
 
 func newConn(conn redigo.Conn) Conn {
@@ -177,6 +182,29 @@ func (r *redis) IncrBy(key string, increment int) (val int64, err error) {
 
 func (r *redis) IncrByFloat(key string, increment float64) (val float64, err error) {
 	return redigo.Float64(r.conn.Do("INCRBYFLOAT", key, increment))
+}
+
+func (r *redis) SetRange(key string, offset int, val string) (strLength int, err error) {
+	return redigo.Int(r.conn.Do("SETRANGE", key, offset, val))
+}
+
+func (r *redis) GetRange(key string, start, end int) (val string, err error) {
+	return String(r.conn.Do("GETRANGE", key, start, end))
+}
+
+func (r *redis) SetBit(key string, offset int, bit int8) (oldBit int, err error) {
+	return redigo.Int(r.conn.Do("SETBIT", key, offset, bit))
+}
+
+func (r *redis) GetBit(key string, offset int) (bit int, err error) {
+	return redigo.Int(r.conn.Do("GETBIT", key, offset))
+}
+
+func (r *redis) BitCount(key string, args ...interface{}) (num int, err error) {
+	params := make([]interface{}, 0, len(args)+1)
+	params = append(params, key)
+	params = append(params, args...)
+	return redigo.Int(r.conn.Do("BITCOUNT", params...))
 }
 
 //endregion

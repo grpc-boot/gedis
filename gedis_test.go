@@ -124,3 +124,75 @@ func TestRedis_IncrByFloat(t *testing.T) {
 
 	t.Logf("incr by test:%v", v)
 }
+
+func TestRedis_GetRange(t *testing.T) {
+	var (
+		r   = p.Get()
+		key = `test_range`
+	)
+	defer p.Put(r)
+
+	val, err := r.GetRange(key, 0, -1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Logf("get range:%s", val)
+
+	length, err := r.SetRange(key, 15, time.Now().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Logf("after setRange length:%d", length)
+
+	val, err = r.GetRange(key, 15, 20)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Logf("get range [15-20]:%s", val)
+}
+
+func TestRedis_BitCount(t *testing.T) {
+	r := p.Get()
+	defer p.Put(r)
+
+	var (
+		key = `test_bit`
+	)
+
+	v, err := r.GetBit(key, 1024)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Log(v)
+
+	num, err := r.BitCount(key)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Log(num)
+
+	ok, err := r.SetBit(key, 1024, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Log(ok)
+
+	num, err = r.BitCount(key)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Log(num)
+
+	num, err = r.BitCount(key, 256, 512)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(num)
+}
