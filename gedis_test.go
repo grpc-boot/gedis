@@ -266,3 +266,72 @@ func TestRedis_MGet(t *testing.T) {
 
 	t.Logf("mset:%v", suc)
 }
+
+func TestRedis_HGetAll(t *testing.T) {
+	r := p.Get()
+	defer p.Put(r)
+
+	var (
+		key    = `test_hash_opt`
+		fields = []string{
+			`field0`,
+			`field1`,
+			`field2`,
+			`field3`,
+			`field4`,
+			`field5`,
+			`field6`,
+			`field7`,
+			`field8`,
+			`field9`,
+		}
+	)
+
+	ok, err := r.HSetNx(key, fields[0], time.Now().Unix())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Logf("hsetNx:%v", ok)
+
+	isNew, err := r.HSet(key, fields[0], time.Now().UnixNano())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("hset:%v", isNew)
+
+	suc, err := r.HMSet(key, fields[1], time.Now().UnixNano(), fields[2], time.Now().Unix())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("hmset:%v", suc)
+
+	suc, err = r.HMSetMap(key, map[string]interface{}{
+		fields[3]: time.Now().UnixNano(),
+		fields[4]: time.Now().Unix(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("hmsetmap:%v", suc)
+
+	values, err := r.HMGet(key, fields[0:5]...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("hmget:%v", values)
+
+	kv, err := r.HMGetMap(key, fields[0:5]...)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Logf("hmgetmap:%v", kv)
+
+	kv, err = r.HGetAll(key)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Logf("hgetall:%v", kv)
+}

@@ -51,6 +51,25 @@ type Conn interface {
 	SetBit(key string, offset int, bit int8) (oldBit int, err error)
 	GetBit(key string, offset int) (bit int, err error)
 	BitCount(key string, args ...interface{}) (num int, err error)
+
+	//-----------------Hash--------------------------
+	HSet(key string, field string, value interface{}) (isNew int, err error)
+	HSetNx(key string, field string, value interface{}) (ok int, err error)
+	HGet(key string, field string) (value string, err error)
+	HMSet(key string, field1 string, value1 interface{}, args ...interface{}) (ok bool, err error)
+	HMSetMap(key string, keyValues map[string]interface{}) (ok bool, err error)
+	HMGet(key string, fields ...string) (values []string, err error)
+	HMGetMap(key string, fields ...string) (keyValues map[string]string, err error)
+	HGetAll(key string) (keyValues map[string]string, err error)
+	HDel(key string, fields ...string) (delNum int, err error)
+	HExists(key string, field string) (exists bool, err error)
+	HIncrBy(key string, field string, increment int) (val int64, err error)
+	HIncrByFloat(key string, field string, increment float64) (val float64, err error)
+	HKeys(key string) (fields []string, err error)
+	HVals(key string) (values []string, err error)
+	HLen(key string) (length int, err error)
+
+	//-----------------List--------------------------
 }
 
 func newConn(conn redigo.Conn) Conn {
@@ -297,6 +316,122 @@ func (r *redis) BitCount(key string, args ...interface{}) (num int, err error) {
 	params = append(params, key)
 	params = append(params, args...)
 	return redigo.Int(r.conn.Do("BITCOUNT", params...))
+}
+
+//endregion
+
+//region 1.2 Hash
+
+func (r *redis) HSet(key string, field string, value interface{}) (isNew int, err error) {
+	return redigo.Int(r.conn.Do("HSET", key, field, value))
+}
+
+func (r *redis) HSetNx(key string, field string, value interface{}) (ok int, err error) {
+	return redigo.Int(r.conn.Do("HSETNX", key, field, value))
+}
+
+func (r *redis) HGet(key string, field string) (value string, err error) {
+	return String(r.conn.Do("HSET", key, field))
+}
+
+func (r *redis) HMSet(key string, field1 string, value1 interface{}, args ...interface{}) (ok bool, err error) {
+	var (
+		res    string
+		params = make([]interface{}, 0, len(args)+3)
+	)
+
+	params = append(params, key, field1, value1)
+	params = append(params, args...)
+
+	res, err = redigo.String(r.conn.Do("HMSET", params...))
+	return res == Ok, err
+}
+
+func (r *redis) HMSetMap(key string, keyValues map[string]interface{}) (ok bool, err error) {
+	var (
+		res  string
+		args = make([]interface{}, 0, 2*len(keyValues)+1)
+	)
+
+	args = append(args, key)
+	for k, v := range keyValues {
+		args = append(args, k, v)
+	}
+
+	res, err = redigo.String(r.conn.Do("HMSET", args...))
+	return res == Ok, err
+}
+
+func (r *redis) HMGet(key string, fields ...string) (values []string, err error) {
+	args := make([]interface{}, 0, len(fields)+1)
+	args = append(args, key)
+	for _, field := range fields {
+		args = append(args, field)
+	}
+	return redigo.Strings(r.conn.Do("HMGET", args...))
+}
+
+func (r *redis) HMGetMap(key string, fields ...string) (keyValues map[string]string, err error) {
+	var (
+		values []string
+		args   = make([]interface{}, 0, len(fields)+1)
+	)
+	args = append(args, key)
+	for _, field := range fields {
+		args = append(args, field)
+	}
+	values, err = redigo.Strings(r.conn.Do("HMGET", args...))
+	if err != nil {
+		return nil, err
+	}
+
+	keyValues = make(map[string]string, len(fields))
+	for index, field := range fields {
+		keyValues[field] = values[index]
+	}
+
+	return
+}
+
+func (r *redis) HGetAll(key string) (keyValues map[string]string, err error) {
+	return redigo.StringMap(r.conn.Do("HGETALL", key))
+}
+
+func (r *redis) HDel(key string, fields ...string) (delNum int, err error) {
+	var (
+		args = make([]interface{}, 0, len(fields)+1)
+	)
+	args = append(args, key)
+	for _, field := range fields {
+		args = append(args, field)
+	}
+	return redigo.Int(r.conn.Do("HDEL", args...))
+}
+
+func (r *redis) HExists(key string, field string) (exists bool, err error) {
+	var suc int
+	suc, err = redigo.Int(r.conn.Do("HEXISTS", key, field))
+	return suc == Success, err
+}
+
+func (r *redis) HIncrBy(key string, field string, increment int) (val int64, err error) {
+	return redigo.Int64(r.conn.Do("HINCRBY", key, field, increment))
+}
+
+func (r *redis) HIncrByFloat(key string, field string, increment float64) (val float64, err error) {
+	return redigo.Float64(r.conn.Do("HINCRBYFLOAT", key, field, increment))
+}
+
+func (r *redis) HKeys(key string) (fields []string, err error) {
+	return redigo.Strings(r.conn.Do("HKEYS", key))
+}
+
+func (r *redis) HVals(key string) (values []string, err error) {
+	return redigo.Strings(r.conn.Do("HVALS", key))
+}
+
+func (r *redis) HLen(key string) (length int, err error) {
+	return redigo.Int(r.conn.Do("HLEN", key))
 }
 
 //endregion
