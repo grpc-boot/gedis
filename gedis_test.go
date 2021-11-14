@@ -1,6 +1,7 @@
 package gedis
 
 import (
+	"math/rand"
 	"testing"
 	"time"
 )
@@ -195,4 +196,73 @@ func TestRedis_BitCount(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Log(num)
+}
+
+func TestRedis_MGet(t *testing.T) {
+	r := p.Get()
+	defer p.Put(r)
+
+	var keys = []string{
+		"mget0",
+		"mget1",
+		"mget2",
+		"mget3",
+		"mget4",
+		"mget5",
+		"mget6",
+		"mget7",
+		"mget8",
+		"mget9",
+		"mget10",
+	}
+
+	values, err := r.MGet(keys...)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Logf("mget values:%v", values)
+
+	_, err = r.SetEx(keys[0], 60, time.Now().UnixNano())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ok, err := r.SetNx(keys[3], time.Now().UnixNano())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Logf("set nx:%v", ok)
+
+	kv, err := r.MGetMap(keys...)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Logf("mgetmap:%v", kv)
+
+	suc, err := r.MSetByMap(map[string]interface{}{
+		keys[2]: time.Now().UnixNano(),
+		keys[5]: rand.Int63n(time.Now().Unix()),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Logf("msetmap:%v", suc)
+
+	values, err = r.MGet(keys...)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Logf("mget:%+v", values)
+
+	suc, err = r.MSet(keys[6], time.Now().UnixNano(), keys[7], time.Now().Unix())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Logf("mset:%v", suc)
 }

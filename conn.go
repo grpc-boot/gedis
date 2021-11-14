@@ -31,11 +31,20 @@ type Conn interface {
 	Type(key string) (t string, err error)
 
 	//-----------------String--------------------------
+	Append(key string, value interface{}) (strLength int, err error)
 	Get(key string) (val string, err error)
+	MGet(keys ...string) (values []string, err error)
+	MGetMap(keys ...string) (keyValue map[string]string, err error)
+	MSet(key1 string, value1 interface{}, keyValues ...interface{}) (ok bool, err error)
+	MSetByMap(keyValues map[string]interface{}) (ok bool, err error)
 	Set(key string, value interface{}, args ...interface{}) (ok bool, err error)
 	SetEx(key string, seconds int, value interface{}) (ok bool, err error)
+	SetNx(key string, value interface{}) (ok int, err error)
+	GetSet(key string, value interface{}) (oldValue string, err error)
 	Incr(key string) (val int64, err error)
+	Decr(key string) (val int64, err error)
 	IncrBy(key string, increment int) (val int64, err error)
+	DecrBy(key string, decrement int) (val int64, err error)
 	IncrByFloat(key string, increment float64) (val float64, err error)
 	SetRange(key string, offset int, val string) (strLength int, err error)
 	GetRange(key string, start, end int) (val string, err error)
@@ -151,8 +160,75 @@ func (r *redis) Type(key string) (t string, err error) {
 
 //region 1.1 String
 
+func (r *redis) Append(key string, value interface{}) (strLength int, err error) {
+	return redigo.Int(r.conn.Do("APPEND", key, value))
+}
+
+func (r *redis) StrLen(key string) (strLength int, err error) {
+	return redigo.Int(r.conn.Do("STRLEN", key))
+}
+
 func (r *redis) Get(key string) (val string, err error) {
 	return redigo.String(r.conn.Do("GET", key))
+}
+
+func (r *redis) MGet(keys ...string) (values []string, err error) {
+	var (
+		args = make([]interface{}, 0, len(keys))
+	)
+
+	for _, key := range keys {
+		args = append(args, key)
+	}
+
+	return redigo.Strings(r.conn.Do("MGET", args...))
+}
+
+func (r *redis) MGetMap(keys ...string) (keyValue map[string]string, err error) {
+	var (
+		values []string
+		args   = make([]interface{}, 0, len(keys))
+	)
+	for _, key := range keys {
+		args = append(args, key)
+	}
+	values, err = redigo.Strings(r.conn.Do("MGET", args...))
+	if err != nil {
+		return nil, err
+	}
+
+	keyValue = make(map[string]string, len(values))
+	for index, key := range keys {
+		keyValue[key] = values[index]
+	}
+	return
+}
+
+func (r *redis) MSet(key1 string, value1 interface{}, keyValues ...interface{}) (ok bool, err error) {
+	var (
+		res  string
+		args = make([]interface{}, 0, len(keyValues)+2)
+	)
+
+	args = append(args, key1, value1)
+	args = append(args, keyValues...)
+
+	res, err = redigo.String(r.conn.Do("MSET", args...))
+	return res == Ok, err
+}
+
+func (r *redis) MSetByMap(keyValues map[string]interface{}) (ok bool, err error) {
+	var (
+		res  string
+		args = make([]interface{}, 0, 2*len(keyValues))
+	)
+
+	for key, value := range keyValues {
+		args = append(args, key, value)
+	}
+
+	res, err = redigo.String(r.conn.Do("MSET", args...))
+	return res == Ok, err
 }
 
 func (r *redis) Set(key string, value interface{}, args ...interface{}) (ok bool, err error) {
@@ -172,12 +248,28 @@ func (r *redis) SetEx(key string, seconds int, value interface{}) (ok bool, err 
 	return res == Ok, err
 }
 
+func (r *redis) SetNx(key string, value interface{}) (ok int, err error) {
+	return redigo.Int(r.conn.Do("SETNX", key, value))
+}
+
+func (r *redis) GetSet(key string, value interface{}) (oldValue string, err error) {
+	return String(r.conn.Do("GETSET", key, value))
+}
+
 func (r *redis) Incr(key string) (val int64, err error) {
 	return redigo.Int64(r.conn.Do("INCR", key))
 }
 
+func (r *redis) Decr(key string) (val int64, err error) {
+	return redigo.Int64(r.conn.Do("DECR", key))
+}
+
 func (r *redis) IncrBy(key string, increment int) (val int64, err error) {
 	return redigo.Int64(r.conn.Do("INCRBY", key, increment))
+}
+
+func (r *redis) DecrBy(key string, decrement int) (val int64, err error) {
+	return redigo.Int64(r.conn.Do("DECRBY", key, decrement))
 }
 
 func (r *redis) IncrByFloat(key string, increment float64) (val float64, err error) {
