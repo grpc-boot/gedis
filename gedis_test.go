@@ -335,3 +335,34 @@ func TestRedis_HGetAll(t *testing.T) {
 
 	t.Logf("hgetall:%v", kv)
 }
+
+func TestRedis_ConfigSet(t *testing.T) {
+	r := p.Get()
+	defer p.Put(r)
+
+	conf, err := r.ConfigGet("*")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Logf("conf timeout:%v", conf["timeout"])
+
+	ok, err := r.ConfigSet("timeout", 60)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Logf("conf set:%v", ok)
+}
+
+func TestRedis_ClientList(t *testing.T) {
+	r := p.Get()
+	defer p.Put(r)
+
+	list, err := r.ClientList()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Logf("client list:%v", list)
+}

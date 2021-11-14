@@ -2,6 +2,7 @@ package gedis
 
 import (
 	redigo "github.com/garyburd/redigo/redis"
+	"strings"
 )
 
 const (
@@ -70,6 +71,11 @@ type Conn interface {
 	HLen(key string) (length int, err error)
 
 	//-----------------List--------------------------
+
+	//-----------------Server--------------------------
+	ClientList() (clients []string, err error)
+	ConfigGet(pattern string) (conf map[string]string, err error)
+	ConfigSet(param string, value interface{}) (ok bool, err error)
 }
 
 func newConn(conn redigo.Conn) Conn {
@@ -432,6 +438,30 @@ func (r *redis) HVals(key string) (values []string, err error) {
 
 func (r *redis) HLen(key string) (length int, err error) {
 	return redigo.Int(r.conn.Do("HLEN", key))
+}
+
+//endregion
+
+//region 1.9 Server
+
+func (r *redis) ClientList() (clients []string, err error) {
+	var clientsStr string
+	clientsStr, err = String(r.conn.Do("CLIENT", "LIST"))
+	if err != nil {
+		return nil, err
+	}
+
+	return strings.Split(clientsStr, "\n"), nil
+}
+
+func (r *redis) ConfigGet(pattern string) (conf map[string]string, err error) {
+	return redigo.StringMap(r.conn.Do("CONFIG", "GET", pattern))
+}
+
+func (r *redis) ConfigSet(param string, value interface{}) (ok bool, err error) {
+	var res string
+	res, err = redigo.String(r.conn.Do("CONFIG", "SET", param, value))
+	return res == Ok, err
 }
 
 //endregion
