@@ -4,7 +4,7 @@ import (
 	redigo "github.com/garyburd/redigo/redis"
 )
 
-type Redis interface {
+type Conn interface {
 	Close() (err error)
 	Del(keys ...interface{}) (delNum int, err error)
 	Exists(key interface{}) (exists int, err error)
@@ -15,7 +15,7 @@ type Redis interface {
 	Scan(cursor int, match string, count int) (newCursor int, keys []string, err error)
 }
 
-func newRedis(conn redigo.Conn) Redis {
+func newConn(conn redigo.Conn) Conn {
 	return &redis{conn: conn}
 }
 

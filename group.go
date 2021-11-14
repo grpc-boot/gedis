@@ -13,9 +13,9 @@ var (
 
 type Group interface {
 	GetPool(key string) (p Pool, err error)
-	Get(key string) (redis Redis, err error)
-	GetContext(ctx context.Context, key string) (redis Redis, err error)
-	Put(redis Redis) (err error)
+	Get(key string) (redis Conn, err error)
+	GetContext(ctx context.Context, key string) (redis Conn, err error)
+	Put(redis Conn) (err error)
 }
 
 type group struct {
@@ -52,7 +52,7 @@ func (g *group) GetPool(key string) (p Pool, err error) {
 	return r.(Pool), nil
 }
 
-func (g *group) Get(key string) (redis Redis, err error) {
+func (g *group) Get(key string) (redis Conn, err error) {
 	r, err := g.ring.Get(key)
 	if err != nil {
 		return nil, err
@@ -63,7 +63,7 @@ func (g *group) Get(key string) (redis Redis, err error) {
 	return
 }
 
-func (g *group) GetContext(ctx context.Context, key string) (redis Redis, err error) {
+func (g *group) GetContext(ctx context.Context, key string) (redis Conn, err error) {
 	r, err := g.ring.Get(key)
 	if err != nil {
 		return nil, err
@@ -72,6 +72,6 @@ func (g *group) GetContext(ctx context.Context, key string) (redis Redis, err er
 	return r.(Pool).GetContext(ctx)
 }
 
-func (g *group) Put(redis Redis) (err error) {
+func (g *group) Put(redis Conn) (err error) {
 	return redis.Close()
 }

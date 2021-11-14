@@ -31,9 +31,9 @@ type Option struct {
 type Pool interface {
 	base.CanHash
 
-	Get() (redis Redis)
-	GetContext(ctx context.Context) (redis Redis, err error)
-	Put(redis Redis) (err error)
+	Get() (conn Conn)
+	GetContext(ctx context.Context) (conn Conn, err error)
+	Put(conn Conn) (err error)
 	ActiveCount() (num int)
 	IdleCount() (num int)
 	Stats() redigo.PoolStats
@@ -89,21 +89,21 @@ func (p *pool) HashCode() uint32 {
 	return crc32.ChecksumIEEE(p.id)
 }
 
-func (p *pool) Get() (redis Redis) {
-	return newRedis(p.p.Get())
+func (p *pool) Get() (conn Conn) {
+	return newConn(p.p.Get())
 }
 
-func (p *pool) GetContext(ctx context.Context) (redis Redis, err error) {
-	var conn redigo.Conn
-	conn, err = p.p.GetContext(ctx)
+func (p *pool) GetContext(ctx context.Context) (conn Conn, err error) {
+	var r redigo.Conn
+	r, err = p.p.GetContext(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return newRedis(conn), nil
+	return newConn(r), nil
 }
 
-func (p *pool) Put(redis Redis) (err error) {
-	return redis.Close()
+func (p *pool) Put(conn Conn) (err error) {
+	return conn.Close()
 }
 
 func (p *pool) ActiveCount() (num int) {
