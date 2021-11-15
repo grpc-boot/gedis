@@ -71,6 +71,17 @@ type Conn interface {
 	HLen(key string) (length int, err error)
 
 	//-----------------List--------------------------
+	LLen(key string) (listLength int, err error)
+	LPush(key string, values ...interface{}) (listLength int, err error)
+	LPushX(key string, value interface{}) (listLength int, err error)
+	LPop(key string) (value string, err error)
+	LIndex(key string, index int) (value string, err error)
+	LRange(key string, start, stop int) (values []string, err error)
+	LSet(key string, index int, value interface{}) (ok bool, err error)
+	LTrim(key string, start, stop int) (ok bool, err error)
+	RPush(key string, values ...interface{}) (listLength int, err error)
+	RPushX(key string, value interface{}) (listLength int, err error)
+	RPop(key string) (value string, err error)
 
 	//-----------------Server--------------------------
 	ClientList() (clients []string, err error)
@@ -438,6 +449,72 @@ func (r *redis) HVals(key string) (values []string, err error) {
 
 func (r *redis) HLen(key string) (length int, err error) {
 	return redigo.Int(r.conn.Do("HLEN", key))
+}
+
+//endregion
+
+//region 1.3 List
+
+func (r *redis) LLen(key string) (listLength int, err error) {
+	return redigo.Int(r.conn.Do("LLEN", key))
+}
+
+func (r *redis) LPush(key string, values ...interface{}) (listLength int, err error) {
+	var (
+		args = make([]interface{}, 0, len(values)+1)
+	)
+	args = append(args, key)
+	for _, value := range values {
+		args = append(args, value)
+	}
+	return redigo.Int(r.conn.Do("LPUSH", args...))
+}
+
+func (r *redis) LPushX(key string, value interface{}) (listLength int, err error) {
+	return redigo.Int(r.conn.Do("LPUSHX", key, value))
+}
+
+func (r *redis) LPop(key string) (value string, err error) {
+	return String(r.conn.Do("LPOP", key))
+}
+
+func (r *redis) LIndex(key string, index int) (value string, err error) {
+	return String(r.conn.Do("LINDEX", key, index))
+}
+
+func (r *redis) LRange(key string, start, stop int) (values []string, err error) {
+	return redigo.Strings(r.conn.Do("LRANGE", key, start, stop))
+}
+
+func (r *redis) LSet(key string, index int, value interface{}) (ok bool, err error) {
+	var suc string
+	suc, err = String(r.conn.Do("LSET", key, index, value))
+	return suc == Ok, err
+}
+
+func (r *redis) LTrim(key string, start, stop int) (ok bool, err error) {
+	var suc string
+	suc, err = String(r.conn.Do("LTRIM", key, start, stop))
+	return suc == Ok, err
+}
+
+func (r *redis) RPush(key string, values ...interface{}) (listLength int, err error) {
+	var (
+		args = make([]interface{}, 0, len(values)+1)
+	)
+	args = append(args, key)
+	for _, value := range values {
+		args = append(args, value)
+	}
+	return redigo.Int(r.conn.Do("RPUSH", args...))
+}
+
+func (r *redis) RPushX(key string, value interface{}) (listLength int, err error) {
+	return redigo.Int(r.conn.Do("RPUSHX", key, value))
+}
+
+func (r *redis) RPop(key string) (value string, err error) {
+	return String(r.conn.Do("RPOP", key))
 }
 
 //endregion

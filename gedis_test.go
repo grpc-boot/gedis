@@ -51,7 +51,6 @@ func TestGroup_Range(t *testing.T) {
 		t.Logf("index:%d, hashCode:%d, hitCount:%d", index, p.HashCode(), hitCount)
 		return
 	})
-	t.Fatal()
 }
 
 func TestRedis_Scan(t *testing.T) {
@@ -391,4 +390,61 @@ func TestRedis_ClientList(t *testing.T) {
 	}
 
 	t.Logf("client list:%v", list)
+}
+
+func TestRedis_LIndex(t *testing.T) {
+	r, err := g.Get(`test_list`)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer g.Put(r)
+
+	var key = `test_list`
+
+	ok, err := r.LTrim(key, -1, -1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Logf("ok:%v", ok)
+
+	item, err := r.LPop(key)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Logf("lpop item:%s", item)
+
+	items, err := r.LRange(key, 0, -1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("lrange :%v", items)
+
+	length, err := r.LPush(key, 10, 1234, []byte(`test item`), 45.67)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Logf("push length:%d", length)
+
+	items, err = r.LRange(key, 0, -1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("lrange :%v", items)
+
+	item, err = r.RPop(key)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Logf("rpop item:%s", item)
+
+	listLength, err := r.LLen(key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("llen length:%d", listLength)
 }
