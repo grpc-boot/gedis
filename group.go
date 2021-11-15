@@ -14,7 +14,10 @@ var (
 type Group interface {
 	GetPool(key string) (p Pool, err error)
 	Get(key string) (redis Conn, err error)
+	Index(index int) (redis Conn, err error)
+	IndexContext(ctx context.Context, index int) (redis Conn, err error)
 	GetContext(ctx context.Context, key string) (redis Conn, err error)
+	Range(handler func(index int, p Pool, hitCount uint64) (handled bool))
 	Put(redis Conn) (err error)
 }
 
@@ -63,6 +66,25 @@ func (g *group) Get(key string) (redis Conn, err error) {
 	return
 }
 
+func (g *group) Index(index int) (redis Conn, err error) {
+	r, err := g.ring.Index(index)
+	if err != nil {
+		return nil, err
+	}
+
+	redis = r.(Pool).Get()
+	return
+}
+
+func (g *group) IndexContext(ctx context.Context, index int) (redis Conn, err error) {
+	r, err := g.ring.Index(index)
+	if err != nil {
+		return nil, err
+	}
+
+	return r.(Pool).GetContext(ctx)
+}
+
 func (g *group) GetContext(ctx context.Context, key string) (redis Conn, err error) {
 	r, err := g.ring.Get(key)
 	if err != nil {
@@ -70,6 +92,12 @@ func (g *group) GetContext(ctx context.Context, key string) (redis Conn, err err
 	}
 
 	return r.(Pool).GetContext(ctx)
+}
+
+func (g *group) Range(handler func(index int, p Pool, hitCount uint64) (handled bool)) {
+	g.ring.Range(func(index int, server base.CanHash, hitCount uint64) (handled bool) {
+		return handler(index, server.(Pool), hitCount)
+	})
 }
 
 func (g *group) Put(redis Conn) (err error) {

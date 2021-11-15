@@ -1,0 +1,50 @@
+redis:
+  - host: '127.0.0.1'
+    port: 6379
+    maxConnLifetime: 600
+    maxIdle: 10
+    maxActive: 20
+    connectTimeout: 300
+    readTimeout: 300
+    writeTimeout: 300
+    index: 0
+
+  - host: '127.0.0.1'
+    port: 6379
+    maxConnLifetime: 600
+    maxIdle: 10
+    maxActive: 20
+    connectTimeout: 300
+    readTimeout: 300
+    writeTimeout: 300
+    index: 1
+
+  - host: '127.0.0.1'
+    port: 6379
+    maxConnLifetime: 600
+    maxIdle: 10
+    maxActive: 20
+    connectTimeout: 300
+    readTimeout: 300
+    writeTimeout: 300
+    index: 2
+
+  - host: '127.0.0.1'
+    port: 6379
+    maxConnLifetime: 600
+    maxIdle: 10
+    maxActive: 20
+    connectTimeout: 300
+    readTimeout: 300
+    writeTimeout: 300
+    index: 3
+
+  - host: '127.0.0.1'
+    port: 6379
+    maxConnLifetime: 600
+    maxIdle: 10
+    maxActive: 20
+    connectTimeout: 300
+    readTimeout: 300
+    writeTimeout: 300
+    index: 4

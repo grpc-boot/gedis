@@ -12,7 +12,7 @@ import (
 
 type Option struct {
 	Host string `yaml:"host" json:"host"`
-	Port string `yaml:"port" json:"port"`
+	Port int    `yaml:"port" json:"port"`
 	Auth string `yaml:"auth" json:"auth"`
 	Db   uint8  `yaml:"db" json:"db"`
 	//单位s
@@ -26,6 +26,8 @@ type Option struct {
 	ReadTimeout int `yaml:"readTimeout" json:"readTimeout"`
 	//单位ms
 	WriteTimeout int `yaml:"writeTimeout" json:"writeTimeout"`
+	//虚拟节点索引
+	Index uint8 `yaml:"index" json:"index"`
 }
 
 type Pool interface {
@@ -55,7 +57,7 @@ func NewPool(option Option) (p Pool) {
 		Wait:            option.Wait,
 		Dial: func() (redigo.Conn, error) {
 			c, err := redigo.Dial("tcp",
-				fmt.Sprintf("%s:%s", option.Host, option.Port),
+				fmt.Sprintf("%s:%d", option.Host, option.Port),
 				redigo.DialConnectTimeout(time.Millisecond*time.Duration(option.ConnectTimeout)),
 				redigo.DialReadTimeout(time.Millisecond*time.Duration(option.ReadTimeout)),
 				redigo.DialReadTimeout(time.Millisecond*time.Duration(option.ReadTimeout)),
@@ -81,7 +83,7 @@ func NewPool(option Option) (p Pool) {
 
 	return &pool{
 		p:  pl,
-		id: []byte(fmt.Sprintf("%s:%s", option.Host, option.Port)),
+		id: []byte(fmt.Sprintf("%s:%d-%d", option.Host, option.Port, option.Index)),
 	}
 }
 

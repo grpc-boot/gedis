@@ -1,6 +1,8 @@
 package gedis
 
 import (
+	"github.com/grpc-boot/base"
+	"log"
 	"math/rand"
 	"testing"
 	"time"
@@ -9,7 +11,7 @@ import (
 var (
 	option = Option{
 		Host:            "127.0.0.1",
-		Port:            "6379",
+		Port:            6379,
 		Auth:            "",
 		Db:              0,
 		MaxConnLifetime: 600,
@@ -21,11 +23,35 @@ var (
 		WriteTimeout:    500,
 	}
 
-	p Pool
+	p           Pool
+	g           Group
+	groupOption GroupOption
 )
+
+type GroupOption struct {
+	Group []Option `yaml:"redis" json:"redis"`
+}
 
 func init() {
 	p = NewPool(option)
+	err := base.YamlDecodeFile("./app.yml", &groupOption)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func TestGroup_Range(t *testing.T) {
+	var err error
+	g, err = NewGroup(groupOption.Group...)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	g.Range(func(index int, p Pool, hitCount uint64) (handled bool) {
+		t.Logf("index:%d, hashCode:%d, hitCount:%d", index, p.HashCode(), hitCount)
+		return
+	})
+	t.Fatal()
 }
 
 func TestRedis_Scan(t *testing.T) {
