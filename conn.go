@@ -1,8 +1,11 @@
 package gedis
 
 import (
+	"context"
 	redigo "github.com/garyburd/redigo/redis"
+	"github.com/grpc-boot/base"
 	"strings"
+	"time"
 )
 
 const (
@@ -82,6 +85,49 @@ type Conn interface {
 	RPush(key string, values ...interface{}) (listLength int, err error)
 	RPushX(key string, value interface{}) (listLength int, err error)
 	RPop(key string) (value string, err error)
+
+	//--------------------Set---------------------------
+	SAdd(key string, members ...interface{}) (addNum int, err error)
+	SMembers(key string) (members []string, err error)
+	SIsMember(key string, member interface{}) (exists bool, err error)
+	SCard(key string) (count int, err error)
+	SPop(key string) (member string, err error)
+	SRandMember(key string, count int) (members []string, err error)
+	SRem(key string, members ...interface{}) (removeNum int, err error)
+	SMove(sourceSetKey, destinationSetKey string, member interface{}) (success int, err error)
+	SDiff(keys ...interface{}) (members []string, err error)
+	SDiffStore(destinationSetKey string, keys ...string) (memberCount int, err error)
+	SInter(keys ...interface{}) (members []string, err error)
+	SInterStore(destinationSetKey string, keys ...string) (memberCount int, err error)
+	SUnion(keys ...interface{}) (members []string, err error)
+	SUnionStore(destinationSetKey string, keys ...string) (memberCount int, err error)
+	SScan(key string, cursor int, match string, count int) (newCursor int, keys []string, err error)
+
+	//--------------------ZSet---------------------------
+	ZAdd(key string, score, value interface{}, scoreAndValues ...interface{}) (createNum int, err error)
+	ZAddMap(key string, membersMap map[string]interface{}) (createNum int, err error)
+	ZCard(key string) (count int, err error)
+	ZCount(key string, minScore, maxScore interface{}) (count int, err error)
+	ZIncrBy(key string, increment interface{}, member string) (newScore string, err error)
+	ZRange(key string, startIndex, stopIndex int) (members []string, err error)
+	ZRevRange(key string, startIndex, stopIndex int) (members []string, err error)
+	ZRangeWithScore(key string, startIndex, stopIndex int) (members map[string]string, err error)
+	ZRevRangeWithScore(key string, startIndex, stopIndex int) (members map[string]string, err error)
+	ZRangeByScore(key string, minScore, maxScore interface{}, offset, limit int) (members []string, err error)
+	ZRevRangeByScore(key string, maxScore, minScore interface{}, offset, limit int) (members []string, err error)
+	ZRangeByScoreWithScore(key string, minScore, maxScore interface{}, offset, limit int) (members map[string]string, err error)
+	ZRevRangeByScoreWithScore(key string, maxScore, minScore interface{}, offset, limit int) (members map[string]string, err error)
+	ZRank(key, member string) (rankIndex int, err error)
+	ZRevRank(key, member string) (rankIndex int, err error)
+	ZScore(key, member string) (score string, err error)
+	ZRem(key string, members ...interface{}) (removeNum int, err error)
+	ZRemRangeByRank(key string, startIndex, stopIndex int) (removeNum int, err error)
+	ZScan(key string, cursor int, match string, count int) (newCursor int, keys []string, err error)
+
+	//--------------------Pub/Sub---------------------------
+	Publish(channel string, msg string) (receiveNum int, err error)
+	PubSubChannels(pattern string) (channels []string, err error)
+	Subscribe(ctx context.Context, ch chan redigo.Message, channels ...interface{}) (err error)
 
 	//-----------------Server--------------------------
 	ClientList() (clients []string, err error)
@@ -515,6 +561,317 @@ func (r *redis) RPushX(key string, value interface{}) (listLength int, err error
 
 func (r *redis) RPop(key string) (value string, err error) {
 	return String(r.conn.Do("RPOP", key))
+}
+
+//endregion
+
+//region 1.4 Set
+
+func (r *redis) SAdd(key string, members ...interface{}) (addNum int, err error) {
+	var (
+		args = make([]interface{}, 0, len(members)+1)
+	)
+	args = append(args, key)
+	args = append(args, members...)
+	return redigo.Int(r.conn.Do("SADD", args...))
+}
+
+func (r *redis) SMembers(key string) (members []string, err error) {
+	return redigo.Strings(r.conn.Do("SMEMBERS", key))
+}
+
+func (r *redis) SIsMember(key string, member interface{}) (exists bool, err error) {
+	var suc int
+	suc, err = redigo.Int(r.conn.Do("SISMEMBER", key, member))
+	return suc == Success, err
+}
+
+func (r *redis) SCard(key string) (count int, err error) {
+	return redigo.Int(r.conn.Do("SCARD", key))
+}
+
+func (r *redis) SPop(key string) (member string, err error) {
+	return String(r.conn.Do("SPOP", key))
+}
+
+func (r *redis) SRandMember(key string, count int) (members []string, err error) {
+	return redigo.Strings(r.conn.Do("SRANDMEMBER", key, count))
+}
+
+func (r *redis) SRem(key string, members ...interface{}) (removeNum int, err error) {
+	var (
+		args = make([]interface{}, 0, len(members)+1)
+	)
+	args = append(args, key)
+	args = append(args, members...)
+	return redigo.Int(r.conn.Do("SREM", args...))
+}
+
+func (r *redis) SMove(sourceSetKey, destinationSetKey string, member interface{}) (success int, err error) {
+	return redigo.Int(r.conn.Do("SMOVE", sourceSetKey, destinationSetKey, member))
+}
+
+func (r *redis) SDiff(keys ...interface{}) (members []string, err error) {
+	return redigo.Strings(r.conn.Do("SDIFF", keys...))
+}
+
+func (r *redis) SDiffStore(destinationSetKey string, keys ...string) (memberCount int, err error) {
+	var (
+		args = make([]interface{}, 0, len(keys)+1)
+	)
+	args = append(args, destinationSetKey)
+	for _, key := range keys {
+		args = append(args, key)
+	}
+	return redigo.Int(r.conn.Do("SDIFFSTORE", args...))
+}
+
+func (r *redis) SInter(keys ...interface{}) (members []string, err error) {
+	return redigo.Strings(r.conn.Do("SINTER", keys...))
+}
+
+func (r *redis) SInterStore(destinationSetKey string, keys ...string) (memberCount int, err error) {
+	var (
+		args = make([]interface{}, 0, len(keys)+1)
+	)
+	args = append(args, destinationSetKey)
+	for _, key := range keys {
+		args = append(args, key)
+	}
+	return redigo.Int(r.conn.Do("SINTERSTORE", args...))
+}
+
+func (r *redis) SUnion(keys ...interface{}) (members []string, err error) {
+	return redigo.Strings(r.conn.Do("SUNION", keys...))
+}
+
+func (r *redis) SUnionStore(destinationSetKey string, keys ...string) (memberCount int, err error) {
+	var (
+		args = make([]interface{}, 0, len(keys)+1)
+	)
+	args = append(args, destinationSetKey)
+	for _, key := range keys {
+		args = append(args, key)
+	}
+	return redigo.Int(r.conn.Do("SUNIONSTORE", args...))
+}
+
+func (r *redis) SScan(key string, cursor int, match string, count int) (newCursor int, keys []string, err error) {
+	var values []interface{}
+	if match == "" {
+		values, err = redigo.Values(r.conn.Do("SSCAN", key, cursor))
+	} else if count == 0 {
+		values, err = redigo.Values(r.conn.Do("SSCAN", key, cursor, "MATCH", match))
+	} else {
+		values, err = redigo.Values(r.conn.Do("SSCAN", key, cursor, "MATCH", match, "COUNT", count))
+	}
+
+	if err != nil {
+		return 0, nil, err
+	}
+
+	keys, err = redigo.Strings(values[1], err)
+	if err != nil {
+		return 0, nil, err
+	}
+
+	newCursor, _ = values[0].(int)
+	return
+}
+
+//endregion
+
+//region 1.5 ZSet
+
+func (r *redis) ZAdd(key string, score, value interface{}, scoreAndValues ...interface{}) (createNum int, err error) {
+	var (
+		args = make([]interface{}, 0, len(scoreAndValues)+3)
+	)
+	args = append(args, key)
+	args = append(args, score, value)
+	for _, p := range scoreAndValues {
+		args = append(args, p)
+	}
+	return redigo.Int(r.conn.Do("ZADD", args...))
+}
+
+func (r *redis) ZAddMap(key string, membersMap map[string]interface{}) (createNum int, err error) {
+	var (
+		args = make([]interface{}, 0, 2*len(membersMap)+1)
+	)
+	args = append(args, key)
+	for value, score := range membersMap {
+		args = append(args, score, value)
+	}
+	return redigo.Int(r.conn.Do("ZADD", args...))
+}
+
+func (r *redis) ZCard(key string) (count int, err error) {
+	return redigo.Int(r.conn.Do("ZCARD", key))
+}
+
+func (r *redis) ZCount(key string, minScore, maxScore interface{}) (count int, err error) {
+	return redigo.Int(r.conn.Do("ZCOUNT", key, minScore, maxScore))
+}
+
+func (r *redis) ZIncrBy(key string, increment interface{}, member string) (newScore string, err error) {
+	return String(r.conn.Do("ZINCRBY", key, increment, member))
+}
+
+func (r *redis) ZRange(key string, startIndex, stopIndex int) (members []string, err error) {
+	return redigo.Strings(r.conn.Do("ZRANGE", key, startIndex, stopIndex))
+}
+
+func (r *redis) ZRevRange(key string, startIndex, stopIndex int) (members []string, err error) {
+	return redigo.Strings(r.conn.Do("ZREVRANGE", key, startIndex, stopIndex))
+}
+
+func (r *redis) ZRangeWithScore(key string, startIndex, stopIndex int) (members map[string]string, err error) {
+	return redigo.StringMap(r.conn.Do("ZRANGE", key, startIndex, stopIndex, "WITHSCORES"))
+}
+
+func (r *redis) ZRevRangeWithScore(key string, startIndex, stopIndex int) (members map[string]string, err error) {
+	return redigo.StringMap(r.conn.Do("ZREVRANGE", key, startIndex, stopIndex, "WITHSCORES"))
+}
+
+func (r *redis) ZRangeByScore(key string, minScore, maxScore interface{}, offset, limit int) (members []string, err error) {
+	if limit == 0 {
+		return redigo.Strings(r.conn.Do("ZRANGEBYSCORE", key, minScore, maxScore))
+	}
+	return redigo.Strings(r.conn.Do("ZRANGEBYSCORE", key, minScore, maxScore, "LIMIT", offset, limit))
+}
+
+func (r *redis) ZRevRangeByScore(key string, maxScore, minScore interface{}, offset, limit int) (members []string, err error) {
+	if limit == 0 {
+		return redigo.Strings(r.conn.Do("ZREVRANGEBYSCORE", key, maxScore, minScore))
+	}
+	return redigo.Strings(r.conn.Do("ZREVRANGEBYSCORE", key, maxScore, minScore, "LIMIT", offset, limit))
+}
+
+func (r *redis) ZRangeByScoreWithScore(key string, minScore, maxScore interface{}, offset, limit int) (members map[string]string, err error) {
+	if limit == 0 {
+		return redigo.StringMap(r.conn.Do("ZRANGEBYSCORE", key, minScore, maxScore, "WITHSCORES"))
+	}
+	return redigo.StringMap(r.conn.Do("ZRANGEBYSCORE", key, minScore, maxScore, "WITHSCORES", "LIMIT", offset, limit))
+}
+
+func (r *redis) ZRevRangeByScoreWithScore(key string, maxScore, minScore interface{}, offset, limit int) (members map[string]string, err error) {
+	if limit == 0 {
+		return redigo.StringMap(r.conn.Do("ZREVRANGEBYSCORE", key, maxScore, minScore, "WITHSCORES"))
+	}
+	return redigo.StringMap(r.conn.Do("ZREVRANGEBYSCORE", key, maxScore, minScore, "WITHSCORES", "LIMIT", offset, limit))
+}
+
+func (r *redis) ZRank(key, member string) (rankIndex int, err error) {
+	return redigo.Int(r.conn.Do("ZRANK", key, member))
+}
+
+func (r *redis) ZRevRank(key, member string) (rankIndex int, err error) {
+	return redigo.Int(r.conn.Do("ZREVRANK", key, member))
+}
+
+func (r *redis) ZScore(key, member string) (score string, err error) {
+	return String(r.conn.Do("ZSCORE", key, member))
+}
+
+func (r *redis) ZRem(key string, members ...interface{}) (removeNum int, err error) {
+	var (
+		args = make([]interface{}, 0, len(members)+1)
+	)
+	args = append(args, key)
+	args = append(args, members...)
+	return redigo.Int(r.conn.Do("ZREM", args))
+}
+
+func (r *redis) ZRemRangeByRank(key string, startIndex, stopIndex int) (removeNum int, err error) {
+	return redigo.Int(r.conn.Do("ZREMRANGEBYRANK", key, startIndex, stopIndex))
+}
+
+func (r *redis) ZRemRangeByScore(key string, minScore, maxScore interface{}) (removeNum int, err error) {
+	return redigo.Int(r.conn.Do("ZREMRANGEBYSCORE", key, minScore, maxScore))
+}
+
+func (r *redis) ZScan(key string, cursor int, match string, count int) (newCursor int, keys []string, err error) {
+	var values []interface{}
+	if match == "" {
+		values, err = redigo.Values(r.conn.Do("ZSCAN", key, cursor))
+	} else if count == 0 {
+		values, err = redigo.Values(r.conn.Do("ZSCAN", key, cursor, "MATCH", match))
+	} else {
+		values, err = redigo.Values(r.conn.Do("ZSCAN", key, cursor, "MATCH", match, "COUNT", count))
+	}
+
+	if err != nil {
+		return 0, nil, err
+	}
+
+	keys, err = redigo.Strings(values[1], err)
+	if err != nil {
+		return 0, nil, err
+	}
+
+	newCursor, _ = values[0].(int)
+	return
+}
+
+//endregion
+
+//region 1.6 Pub/Sub
+
+func (r *redis) Publish(channel string, msg string) (receiveNum int, err error) {
+	return redigo.Int(r.conn.Do("PUBLISH", channel, msg))
+}
+
+func (r *redis) PubSubChannels(pattern string) (channels []string, err error) {
+	return redigo.Strings(r.conn.Do("PUBSUB", "CHANNELS", pattern))
+}
+
+func (r *redis) Subscribe(ctx context.Context, ch chan redigo.Message, channels ...interface{}) (err error) {
+	var (
+		ps = redigo.PubSubConn{Conn: r.conn}
+	)
+
+	err = ps.Subscribe(redigo.Args{}.Add(channels...)...)
+	if err != nil {
+		return err
+	}
+
+	go func() {
+		tick := time.NewTicker(time.Second)
+		defer tick.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				close(ch)
+				if err = ps.Unsubscribe(); err != nil {
+					base.Red("unsubscribe err:%s", err.Error())
+				}
+			case <-tick.C:
+				if err = ps.Ping(""); err != nil {
+					base.Red("send ping err:%s", err.Error())
+				}
+			default:
+				switch m := ps.Receive().(type) {
+				case redigo.Subscription:
+					base.Green("channel:%s, kind:%s, count:%d", m.Channel, m.Kind, m.Count)
+				case error:
+					base.Red("receive err:%s", m.Error())
+					time.Sleep(time.Millisecond * 100)
+				case redigo.Message:
+					ch <- m
+				case redigo.PMessage:
+					ch <- redigo.Message{
+						Channel: m.Channel,
+						Data:    m.Data,
+					}
+				default:
+					base.Red("%v", m)
+					continue
+				}
+			}
+		}
+	}()
+	return nil
 }
 
 //endregion

@@ -50,35 +50,45 @@ type pool struct {
 }
 
 func NewPool(option Option) (p Pool) {
+	var dialOptions = []redigo.DialOption{
+		redigo.DialDatabase(int(option.Db)),
+	}
+
+	if option.ConnectTimeout > 0 {
+		dialOptions = append(dialOptions, redigo.DialReadTimeout(time.Millisecond*time.Duration(option.ConnectTimeout)))
+	}
+
+	if option.ReadTimeout > 0 {
+		dialOptions = append(dialOptions, redigo.DialReadTimeout(time.Millisecond*time.Duration(option.ReadTimeout)))
+	}
+
+	if option.WriteTimeout > 0 {
+		dialOptions = append(dialOptions, redigo.DialWriteTimeout(time.Millisecond*time.Duration(option.WriteTimeout)))
+	}
+
+	if len(option.Auth) > 0 {
+		dialOptions = append(dialOptions, redigo.DialPassword(option.Auth))
+	}
+
+	addr := fmt.Sprintf("%s:%d", option.Host, option.Port)
 	pl := &redigo.Pool{
-		MaxConnLifetime: time.Second * time.Duration(option.MaxConnLifetime),
-		MaxIdle:         option.MaxIdle,
-		MaxActive:       option.MaxActive,
-		Wait:            option.Wait,
+		MaxIdle:   option.MaxIdle,
+		MaxActive: option.MaxActive,
+		Wait:      option.Wait,
 		Dial: func() (redigo.Conn, error) {
-			c, err := redigo.Dial("tcp",
-				fmt.Sprintf("%s:%d", option.Host, option.Port),
-				redigo.DialConnectTimeout(time.Millisecond*time.Duration(option.ConnectTimeout)),
-				redigo.DialReadTimeout(time.Millisecond*time.Duration(option.ReadTimeout)),
-				redigo.DialReadTimeout(time.Millisecond*time.Duration(option.ReadTimeout)),
-			)
-			if err != nil {
-				return nil, err
-			}
-
-			if len(option.Auth) > 0 {
-				if _, err = c.Do("AUTH", option.Auth); err != nil {
-					_ = c.Close()
-					return nil, err
-				}
-			}
-
-			if _, err = c.Do("SELECT", option.Db); err != nil {
-				_ = c.Close()
-				return nil, err
-			}
-			return c, nil
+			return redigo.Dial("tcp", addr, dialOptions...)
 		},
+		TestOnBorrow: func(c redigo.Conn, t time.Time) error {
+			if time.Since(t) < time.Minute {
+				return nil
+			}
+			_, err := c.Do("PING")
+			return err
+		},
+	}
+
+	if option.MaxConnLifetime > 0 {
+		pl.MaxConnLifetime = time.Second * time.Duration(option.MaxConnLifetime)
 	}
 
 	return &pool{

@@ -372,7 +372,7 @@ func TestRedis_ConfigSet(t *testing.T) {
 
 	t.Logf("conf timeout:%v", conf["timeout"])
 
-	ok, err := r.ConfigSet("timeout", 60)
+	ok, err := r.ConfigSet("timeout", 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -447,4 +447,188 @@ func TestRedis_LIndex(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Logf("llen length:%d", listLength)
+}
+
+func TestRedis_SScan(t *testing.T) {
+	r, err := g.Get(`test_list`)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer g.Put(r)
+
+	var key = `test_set`
+
+	count, err := r.SCard(key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("scard count:%d", count)
+
+	members, err := r.SMembers(key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("smembers:%v", members)
+
+	var cursor int
+	cursor, members, err = r.SScan(key, cursor, "", 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("newCursor:%d, members:%v", cursor, members)
+
+	addNum, err := r.SAdd(key, time.Now().UnixNano(), time.Now().Hour())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Logf("addNum:%d", addNum)
+
+	members, err = r.SInter(key, key+"d")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Logf("inter list:%v", members)
+
+	suc, err := r.SMove(key, key+"d", time.Now().Hour())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Logf("move suc:%v", suc)
+
+	members, err = r.SInter(key, key+"d")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Logf("inter list:%v", members)
+
+	members, err = r.SUnion(key, key+"d")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Logf("union list:%v", members)
+
+	cursor, members, err = r.SScan(key, cursor, "1*", 20)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Logf("sscan newCursor:%d members:%v", cursor, members)
+}
+
+func TestRedis_ZScan(t *testing.T) {
+	r, err := g.Get(`test_list`)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer g.Put(r)
+
+	var (
+		key    = `test_zset`
+		cursor = 0
+	)
+
+	cursor, members, err := r.ZScan(key, cursor, "", 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Logf("zscan newCursor:%d members:%v", cursor, members)
+
+	count, err := r.ZCard(key)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Logf("zcard:%d", count)
+
+	createNum, err := r.ZAdd(key, 102.23, time.Now().UnixNano(), 101.12, time.Now().UnixNano())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Logf("zadd createNum:%d", createNum)
+
+	createNum, err = r.ZAddMap(key, map[string]interface{}{
+		"m1": 145.34,
+		"m2": 101,
+		"m3": 3,
+		"m4": 234,
+		"m5": 34234.342,
+		"m6": 1000,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Logf("zaddmap createNum:%d", createNum)
+
+	count, err = r.ZCard(key)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Logf("zcard:%d", count)
+
+	members, err = r.ZRange(key, 0, -1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Logf("zrange:%v", members)
+
+	members, err = r.ZRevRange(key, 0, -1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Logf("zrevrange:%v", members)
+
+	rankIndex, err := r.ZRank(key, "m2")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Logf("zrank index:%d", rankIndex)
+
+	score, err := r.ZScore(key, "m3")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Logf("zscore score:%s", score)
+
+	rankIndex, err = r.ZRevRank(key, "m2")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Logf("zrevrank index:%d", rankIndex)
+
+	count, err = r.ZCount(key, "(102.23", "234")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Logf("zcount count:%d", count)
+
+	newScore, err := r.ZIncrBy(key, 1.2, "m3")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Logf("ZIncrBy newScore:%s", newScore)
+
+	mem, err := r.ZRevRangeByScoreWithScore(key, 234, "102.23", 0, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Logf("ZRevRangeByScoreWithScore mem:%v", mem)
 }
