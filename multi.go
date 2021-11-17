@@ -10,12 +10,27 @@ const (
 var (
 	multiPool = sync.Pool{
 		New: func() interface{} {
-			return newPipe()
+			return &multi{
+				cmdList: make([]Cmd, 0),
+			}
 		},
 	}
 
 	PipeMulti = func() Multi {
-		m := multiPool.Get()
+		m := multiPool.Get().(*multi)
+		m.kind = Pipeline
+		return m
+	}
+
+	TransMulti = func() Multi {
+		m := multiPool.Get().(*multi)
+		m.kind = Transaction
+		return m
+	}
+
+	ReleaseMulti = func(m Multi) {
+		m.Reset()
+		multiPool.Put(m)
 	}
 )
 
@@ -139,20 +154,6 @@ func (c Cmd) Info() (cmd string, args []interface{}) {
 type multi struct {
 	kind    uint8
 	cmdList []Cmd
-}
-
-func newTrans() Multi {
-	return &multi{
-		kind:    Transaction,
-		cmdList: make([]Cmd, 0),
-	}
-}
-
-func newPipe() Multi {
-	return &multi{
-		kind:    Pipeline,
-		cmdList: make([]Cmd, 0),
-	}
 }
 
 func (m *multi) Del(keys ...interface{}) Multi {

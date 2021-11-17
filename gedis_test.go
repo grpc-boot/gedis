@@ -1,6 +1,7 @@
 package gedis
 
 import (
+	redigo "github.com/garyburd/redigo/redis"
 	"github.com/grpc-boot/base"
 	"log"
 	"math/rand"
@@ -635,4 +636,52 @@ func TestRedis_ZScan(t *testing.T) {
 		t.Logf("index:%d, hashCode:%d, hitCount:%d", index, p.HashCode(), hitCount)
 		return
 	})
+}
+
+func TestRedis_Multi(t *testing.T) {
+	r, err := g.Get(`test_multi`)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer g.Put(r)
+
+	var key = `test_multi`
+
+	m, err := r.Multi(Transaction)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	m.Set(key, 5)
+	m.Incr(key).IncrBy(key, 34)
+
+	values, err := r.Exec(m)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Logf("%v", values)
+
+	m, err = r.Multi(Pipeline)
+
+	key = `test_multi_pipe`
+	m.HGet(key, `date`).HSet(key, `date`, time.Now().Unix())
+	m.HMSetMap(key, map[string]interface{}{
+		"name": "nn",
+		"age":  34,
+	})
+	m.HGetAll(key)
+
+	values, err = r.Exec(m)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(values) == 4 {
+		t.Log(String(values[0], nil))
+		t.Log(values[1].(int64))
+		t.Log(String(values[2], nil))
+		t.Log(redigo.StringMap(values[3], nil))
+	}
 }

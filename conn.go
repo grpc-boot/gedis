@@ -864,9 +864,9 @@ func (r *redis) EvalOrSha4String(script string, keyCount int, keysAndArgs ...int
 func (r *redis) Multi(kind uint8) (multi Multi, err error) {
 	switch kind {
 	case Transaction:
-		return newTrans(), nil
+		return TransMulti(), nil
 	case Pipeline:
-		return newPipe(), nil
+		return PipeMulti(), nil
 	}
 	return nil, ErrInvalidMultiKind
 }
@@ -884,6 +884,7 @@ func (r *redis) Exec(multi Multi) (values []interface{}, err error) {
 		return redigo.Values(r.conn.Do(""))
 	}
 
+	ReleaseMulti(multi)
 	return redigo.Values(r.conn.Do("EXEC"))
 }
 
