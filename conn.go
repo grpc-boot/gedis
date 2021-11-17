@@ -1,6 +1,7 @@
 package gedis
 
 import (
+	"errors"
 	redigo "github.com/garyburd/redigo/redis"
 	"strings"
 )
@@ -8,6 +9,10 @@ import (
 const (
 	Ok      = `OK`
 	Success = 1
+)
+
+var (
+	ErrInvalidMultiKind = errors.New(`invalid multi kind`)
 )
 
 type Conn interface {
@@ -124,6 +129,17 @@ type Conn interface {
 	//--------------------Pub/Sub---------------------------
 	Publish(channel string, msg string) (receiveNum int, err error)
 	PubSubChannels(pattern string) (channels []string, err error)
+
+	//--------------------Pub/Sub---------------------------
+	EvalOrSha(script string, keyCount int, keysAndArgs ...interface{}) (reply interface{}, err error)
+	EvalOrSha4Int64(script string, keyCount int, keysAndArgs ...interface{}) (res int64, err error)
+	EvalOrSha4String(script string, keyCount int, keysAndArgs ...interface{}) (res string, err error)
+
+	//--------------------Transaction---------------------------
+	Multi(kind uint8) (multi Multi, err error)
+	Exec(multi Multi) (values []interface{}, err error)
+	Watch(keys ...interface{}) (ok bool, err error)
+	UnWatch(keys ...interface{}) (ok bool, err error)
 
 	//-----------------Server--------------------------
 	ClientList() (clients []string, err error)
@@ -390,7 +406,7 @@ func (r *redis) HSetNx(key string, field string, value interface{}) (ok int, err
 }
 
 func (r *redis) HGet(key string, field string) (value string, err error) {
-	return String(r.conn.Do("HSET", key, field))
+	return String(r.conn.Do("HGET", key, field))
 }
 
 func (r *redis) HMSet(key string, field1 string, value1 interface{}, args ...interface{}) (ok bool, err error) {
@@ -820,6 +836,67 @@ func (r *redis) Publish(channel string, msg string) (receiveNum int, err error) 
 
 func (r *redis) PubSubChannels(pattern string) (channels []string, err error) {
 	return redigo.Strings(r.conn.Do("PUBSUB", "CHANNELS", pattern))
+}
+
+//endregion
+
+//region 1.7 Script
+
+func (r *redis) EvalOrSha(script string, keyCount int, keysAndArgs ...interface{}) (reply interface{}, err error) {
+	s := redigo.NewScript(keyCount, script)
+	return s.Do(r.conn, keysAndArgs...)
+}
+
+func (r *redis) EvalOrSha4Int64(script string, keyCount int, keysAndArgs ...interface{}) (res int64, err error) {
+	s := redigo.NewScript(keyCount, script)
+	return redigo.Int64(s.Do(r.conn, keysAndArgs...))
+}
+
+func (r *redis) EvalOrSha4String(script string, keyCount int, keysAndArgs ...interface{}) (res string, err error) {
+	s := redigo.NewScript(keyCount, script)
+	return String(s.Do(r.conn, keysAndArgs...))
+}
+
+//endregion
+
+//region 1.8 Transaction
+
+func (r *redis) Multi(kind uint8) (multi Multi, err error) {
+	switch kind {
+	case Transaction:
+		return newTrans(), nil
+	case Pipeline:
+		return newPipe(), nil
+	}
+	return nil, ErrInvalidMultiKind
+}
+
+func (r *redis) Exec(multi Multi) (values []interface{}, err error) {
+	if multi.Kind() == Transaction {
+		_ = r.conn.Send("MULTI")
+	}
+
+	for _, cmd := range multi.CmdList() {
+		_ = r.conn.Send(cmd.cmd, cmd.args...)
+	}
+
+	if multi.Kind() == Pipeline {
+		return redigo.Values(r.conn.Do(""))
+	}
+
+	return redigo.Values(r.conn.Do("EXEC"))
+}
+
+func (r *redis) Watch(keys ...interface{}) (ok bool, err error) {
+	var res string
+	res, err = String(r.conn.Do("WATCH", keys...))
+	return res == Ok, err
+}
+
+func (r *redis) UnWatch(keys ...interface{}) (ok bool, err error) {
+	var res string
+	res, err = String(r.conn.Do("UNWATCH", keys...))
+	return res == Ok, err
 }
 
 //endregion
