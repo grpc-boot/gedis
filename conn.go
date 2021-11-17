@@ -1,11 +1,8 @@
 package gedis
 
 import (
-	"context"
 	redigo "github.com/garyburd/redigo/redis"
-	"github.com/grpc-boot/base"
 	"strings"
-	"time"
 )
 
 const (
@@ -127,7 +124,6 @@ type Conn interface {
 	//--------------------Pub/Sub---------------------------
 	Publish(channel string, msg string) (receiveNum int, err error)
 	PubSubChannels(pattern string) (channels []string, err error)
-	Subscribe(ctx context.Context, ch chan redigo.Message, channels ...interface{}) (err error)
 
 	//-----------------Server--------------------------
 	ClientList() (clients []string, err error)
@@ -824,54 +820,6 @@ func (r *redis) Publish(channel string, msg string) (receiveNum int, err error) 
 
 func (r *redis) PubSubChannels(pattern string) (channels []string, err error) {
 	return redigo.Strings(r.conn.Do("PUBSUB", "CHANNELS", pattern))
-}
-
-func (r *redis) Subscribe(ctx context.Context, ch chan redigo.Message, channels ...interface{}) (err error) {
-	var (
-		ps = redigo.PubSubConn{Conn: r.conn}
-	)
-
-	err = ps.Subscribe(redigo.Args{}.Add(channels...)...)
-	if err != nil {
-		return err
-	}
-
-	go func() {
-		tick := time.NewTicker(time.Second)
-		defer tick.Stop()
-		for {
-			select {
-			case <-ctx.Done():
-				close(ch)
-				if err = ps.Unsubscribe(); err != nil {
-					base.Red("unsubscribe err:%s", err.Error())
-				}
-			case <-tick.C:
-				if err = ps.Ping(""); err != nil {
-					base.Red("send ping err:%s", err.Error())
-				}
-			default:
-				switch m := ps.Receive().(type) {
-				case redigo.Subscription:
-					base.Green("channel:%s, kind:%s, count:%d", m.Channel, m.Kind, m.Count)
-				case error:
-					base.Red("receive err:%s", m.Error())
-					time.Sleep(time.Millisecond * 100)
-				case redigo.Message:
-					ch <- m
-				case redigo.PMessage:
-					ch <- redigo.Message{
-						Channel: m.Channel,
-						Data:    m.Data,
-					}
-				default:
-					base.Red("%v", m)
-					continue
-				}
-			}
-		}
-	}()
-	return nil
 }
 
 //endregion

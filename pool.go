@@ -26,8 +26,8 @@ type Option struct {
 	ReadTimeout int `yaml:"readTimeout" json:"readTimeout"`
 	//单位ms
 	WriteTimeout int `yaml:"writeTimeout" json:"writeTimeout"`
-	//虚拟节点索引
-	Index uint8 `yaml:"index" json:"index"`
+	//节点索引
+	Index int `yaml:"index" json:"index"`
 }
 
 type Pool interface {
@@ -52,18 +52,9 @@ type pool struct {
 func NewPool(option Option) (p Pool) {
 	var dialOptions = []redigo.DialOption{
 		redigo.DialDatabase(int(option.Db)),
-	}
-
-	if option.ConnectTimeout > 0 {
-		dialOptions = append(dialOptions, redigo.DialReadTimeout(time.Millisecond*time.Duration(option.ConnectTimeout)))
-	}
-
-	if option.ReadTimeout > 0 {
-		dialOptions = append(dialOptions, redigo.DialReadTimeout(time.Millisecond*time.Duration(option.ReadTimeout)))
-	}
-
-	if option.WriteTimeout > 0 {
-		dialOptions = append(dialOptions, redigo.DialWriteTimeout(time.Millisecond*time.Duration(option.WriteTimeout)))
+		redigo.DialConnectTimeout(time.Millisecond * time.Duration(option.ConnectTimeout)),
+		redigo.DialReadTimeout(time.Millisecond * time.Duration(option.ReadTimeout)),
+		redigo.DialWriteTimeout(time.Millisecond * time.Duration(option.WriteTimeout)),
 	}
 
 	if len(option.Auth) > 0 {

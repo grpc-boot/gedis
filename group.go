@@ -11,6 +11,11 @@ var (
 	ErrOptionEmpty = errors.New(`redis option empty`)
 )
 
+type GroupOption struct {
+	Option       Option `yaml:"option" json:"option"`
+	VirtualCount int    `yaml:"virtualCount" json:"virtualCount"`
+}
+
 type Group interface {
 	GetPool(key string) (p Pool, err error)
 	Get(key string) (redis Conn, err error)
@@ -27,21 +32,28 @@ type group struct {
 	ring base.HashRing
 }
 
-func NewGroup(options ...Option) (g Group, err error) {
-	poolSize := len(options)
-	if poolSize < 1 {
+func NewGroup(options ...GroupOption) (g Group, err error) {
+	if len(options) < 1 {
 		return nil, ErrOptionEmpty
 	}
 
-	poolList := make([]base.CanHash, len(options), len(options))
-	for index := 0; index < poolSize; index++ {
-		poolList[index] = NewPool(options[index])
+	var poolSize = 0
+	for _, option := range options {
+		poolSize += 1
+		poolSize += option.VirtualCount
+	}
+
+	poolList := make([]base.CanHash, 0, poolSize)
+	for _, option := range options {
+		for s := 0; s <= option.VirtualCount; s++ {
+			option.Option.Index = s
+			poolList = append(poolList, NewPool(option.Option))
+		}
 	}
 
 	g = &group{
 		ring: base.NewHashRing(poolList...),
 	}
-
 	return g, nil
 }
 

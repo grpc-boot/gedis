@@ -23,30 +23,29 @@ var (
 		WriteTimeout:    500,
 	}
 
-	p           Pool
-	g           Group
-	groupOption GroupOption
+	p            Pool
+	g            Group
+	groupOptions GOption
 )
 
-type GroupOption struct {
-	Group []Option `yaml:"redis" json:"redis"`
+type GOption struct {
+	Group []GroupOption `yaml:"redis" json:"redis"`
 }
 
 func init() {
 	p = NewPool(option)
-	err := base.YamlDecodeFile("./app.yml", &groupOption)
+	err := base.YamlDecodeFile("./app.yml", &groupOptions)
 	if err != nil {
 		log.Fatal(err)
+	}
+
+	g, err = NewGroup(groupOptions.Group...)
+	if err != nil {
+		base.RedFatal(err.Error())
 	}
 }
 
 func TestGroup_Range(t *testing.T) {
-	var err error
-	g, err = NewGroup(groupOption.Group...)
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	g.Range(func(index int, p Pool, hitCount uint64) (handled bool) {
 		t.Logf("index:%d, hashCode:%d, hitCount:%d", index, p.HashCode(), hitCount)
 		return
@@ -631,4 +630,9 @@ func TestRedis_ZScan(t *testing.T) {
 	}
 
 	t.Logf("ZRevRangeByScoreWithScore mem:%v", mem)
+
+	g.Range(func(index int, p Pool, hitCount uint64) (handled bool) {
+		t.Logf("index:%d, hashCode:%d, hitCount:%d", index, p.HashCode(), hitCount)
+		return
+	})
 }
