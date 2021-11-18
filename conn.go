@@ -2,13 +2,24 @@ package gedis
 
 import (
 	"errors"
+	"fmt"
 	redigo "github.com/garyburd/redigo/redis"
 	"strings"
+	"time"
 )
 
 const (
 	Ok      = `OK`
 	Success = 1
+)
+
+const (
+	lockFormat = "gedL:%s"
+	_delLock   = `if redis.call('get', KEYS[1]) == ARGV[1]
+            then
+                return redis.call('del', KEYS[1])
+            end
+            return 0`
 )
 
 var (
@@ -151,6 +162,10 @@ type Conn interface {
 	Watch(keys ...interface{}) (ok bool, err error)
 	UnWatch(keys ...interface{}) (ok bool, err error)
 	Discard() (ok bool, err error)
+
+	//--------------------Lock---------------------------
+	Acquire(key string, timeoutSecond int) (token int64, err error)
+	Release(key string, token int64) (ok bool, err error)
 
 	//-----------------Server--------------------------
 	ClientList() (clients []string, err error)
@@ -347,7 +362,7 @@ func (r *redis) Set(key string, value interface{}, args ...interface{}) (ok bool
 	)
 	params = append(params, key, value)
 	params = append(params, args...)
-	res, err = redigo.String(r.conn.Do("SET", params...))
+	res, err = String(r.conn.Do("SET", params...))
 	return res == Ok, err
 }
 
@@ -919,6 +934,30 @@ func (r *redis) UnWatch(keys ...interface{}) (ok bool, err error) {
 	var res string
 	res, err = String(r.conn.Do("UNWATCH", keys...))
 	return res == Ok, err
+}
+
+//endregion
+
+//region 1.10 Lock
+
+func (r *redis) Acquire(key string, timeoutSecond int) (token int64, err error) {
+	var (
+		ok bool
+	)
+	token = time.Now().UnixNano()
+	ok, err = r.Set(fmt.Sprintf(lockFormat, key), token, "NX", "EX", timeoutSecond)
+	if !ok {
+		return 0, err
+	}
+	return token, nil
+}
+
+func (r *redis) Release(key string, token int64) (ok bool, err error) {
+	var (
+		suc int64
+	)
+	suc, err = r.EvalOrSha4Int64(_delLock, 1, fmt.Sprintf(lockFormat, key), token)
+	return suc == 1, err
 }
 
 //endregion

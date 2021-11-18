@@ -831,3 +831,55 @@ func TestRedis_GeoRadiusByMember(t *testing.T) {
 	locationList, err := Locations(values[3], nil)
 	t.Logf("%#v", locationList)
 }
+
+func TestRedis_Acquire(t *testing.T) {
+	r, err := g.Get(`test_lock`)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer g.Put(r)
+
+	var (
+		key = `test_lock`
+	)
+
+	token, err := r.Acquire(key, 3)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if token == 0 {
+		t.Fatal("want >0, got 0")
+	}
+
+	t.Logf("got token:%d", token)
+
+	failToken, err := r.Acquire(key, 3)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if failToken > 0 {
+		t.Fatalf("want 0, got %d", failToken)
+	}
+
+	ok, err := r.Release(key, token)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !ok {
+		t.Fatalf("want true, got %v", ok)
+	}
+
+	token, err = r.Acquire(key, 3)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if token == 0 {
+		t.Fatal("want >0, got 0")
+	}
+	t.Logf("got token:%d", token)
+}
