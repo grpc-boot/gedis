@@ -132,7 +132,7 @@ type Conn interface {
 	GeoHash(key string, members ...interface{}) (hashList []string, err error)
 	GeoDel(key string, members ...interface{}) (removeNum int, err error)
 	GeoDist(key string, member1, member2 interface{}, unit string) (distance string, err error)
-	GeoPos(key string, members ...interface{}) (itudes []string, err error)
+	GeoPos(key string, members ...interface{}) (positionList []Position, err error)
 	GeoRadius(key string, longitude, latitude float64, radius interface{}, unit string, count int, sort string) (locationList []Location, err error)
 	GeoRadiusByMember(key string, member interface{}, radius interface{}, unit string, count int, sort string) (locationList []Location, err error)
 

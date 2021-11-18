@@ -5,6 +5,7 @@ import (
 
 	redigo "github.com/garyburd/redigo/redis"
 	"github.com/grpc-boot/base"
+	"github.com/shopspring/decimal"
 )
 
 func String(reply interface{}, err error) (string, error) {
@@ -39,15 +40,49 @@ func Locations(reply interface{}, err error) ([]Location, error) {
 	locationList := make([]Location, 0, len(values))
 
 	for _, value := range values {
-		val := value.([]interface{})
-		locationList = append(locationList, Location{
-			Member:   base.Bytes2String(val[0].([]byte)),
-			Distance: base.Bytes2String(val[1].([]byte)),
-			Hash:     val[2].(int64),
-			Lng:      base.Bytes2Float64(val[3].([]interface{})[0].([]byte)),
-			Lat:      base.Bytes2Float64(val[3].([]interface{})[1].([]byte)),
-		})
+		var (
+			val     = value.([]interface{})
+			lngD, _ = decimal.NewFromString(base.Bytes2String(val[3].([]interface{})[0].([]byte)))
+			latD, _ = decimal.NewFromString(base.Bytes2String(val[3].([]interface{})[1].([]byte)))
+			loc     = Location{
+				Member:   base.Bytes2String(val[0].([]byte)),
+				Distance: base.Bytes2String(val[1].([]byte)),
+				Hash:     val[2].(int64),
+			}
+		)
+
+		loc.Lng, _ = lngD.Round(6).Float64()
+		loc.Lat, _ = latD.Round(6).Float64()
+
+		locationList = append(locationList, loc)
 	}
 
 	return locationList, nil
+}
+
+func Positions(reply interface{}, err error) ([]Position, error) {
+	if err != nil {
+		return nil, err
+	}
+
+	values, err := redigo.Values(reply, err)
+	if err != nil {
+		return nil, err
+	}
+
+	positionList := make([]Position, 0, len(values))
+
+	for _, value := range values {
+		var (
+			val     = value.([]interface{})
+			p       = Position{}
+			lngD, _ = decimal.NewFromString(base.Bytes2String(val[0].([]byte)))
+			latD, _ = decimal.NewFromString(base.Bytes2String(val[1].([]byte)))
+		)
+		p.Lng, _ = lngD.Round(6).Float64()
+		p.Lat, _ = latD.Round(6).Float64()
+		positionList = append(positionList, p)
+	}
+
+	return positionList, nil
 }

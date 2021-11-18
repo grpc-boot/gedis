@@ -4,6 +4,11 @@ import (
 	redigo "github.com/garyburd/redigo/redis"
 )
 
+type Position struct {
+	Lng float64
+	Lat float64
+}
+
 type Location struct {
 	Member   string
 	Distance string
@@ -42,7 +47,7 @@ func (r *redis) GeoDist(key string, member1, member2 interface{}, unit string) (
 	return String(r.conn.Do("GEODIST", key, member1, member2, unit))
 }
 
-func (r *redis) GeoPos(key string, members ...interface{}) (itudes []string, err error) {
+func (r *redis) GeoPos(key string, members ...interface{}) (positionList []Position, err error) {
 	var (
 		args = make([]interface{}, 0, len(members)+1)
 	)
@@ -50,7 +55,7 @@ func (r *redis) GeoPos(key string, members ...interface{}) (itudes []string, err
 	args = append(args, key)
 	args = append(args, members...)
 
-	return redigo.Strings(r.conn.Do("GEOPOS", args...))
+	return Positions(r.conn.Do("GEOPOS", args...))
 }
 
 func (r *redis) GeoRadius(key string, longitude, latitude float64, radius interface{}, unit string, count int, sort string) (locationList []Location, err error) {

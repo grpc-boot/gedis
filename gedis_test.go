@@ -688,7 +688,7 @@ func TestRedis_Multi(t *testing.T) {
 }
 
 func TestRedis_GeoRadiusByMemberWithDist(t *testing.T) {
-	r, err := g.Get(`test_multi`)
+	r, err := g.Get(`test_geo`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -795,4 +795,39 @@ func TestRedis_GeoRadiusByMemberWithDist(t *testing.T) {
 
 		t.Logf("id:%d addr:%s geohash:%s lat:%f lng:%f \n", addr.id, addr.addr, hashList[0], addr.lat, addr.lng)
 	}
+}
+
+func TestRedis_GeoRadiusByMember(t *testing.T) {
+	r, err := g.Get(`test_multi`)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer g.Put(r)
+
+	var key = `test_geo`
+
+	m, err := r.Multi(Pipeline)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	m.GeoDist(key, 1, 2, "km")
+	m.GeoDel(key, 10)
+	m.GeoPos(key, 3, 4)
+	m.GeoRadiusByMember(key, 0, 100, "km", 10, "")
+
+	values, err := r.Exec(m)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Log(String(values[0], nil))
+	t.Log(redigo.Int(values[1], nil))
+
+	positionList, err := Positions(values[2], nil)
+	t.Logf("%#v", positionList)
+
+	locationList, err := Locations(values[3], nil)
+	t.Logf("%#v", locationList)
 }
