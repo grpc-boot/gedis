@@ -18,6 +18,7 @@ var (
 type Conn interface {
 	Close() (err error)
 	Do(cmd string, args ...interface{}) (reply interface{}, err error)
+	Send(cmd string, args ...interface{}) (err error)
 
 	//-----------------Key--------------------------
 	Del(keys ...interface{}) (delNum int, err error)
@@ -126,11 +127,20 @@ type Conn interface {
 	ZRemRangeByRank(key string, startIndex, stopIndex int) (removeNum int, err error)
 	ZScan(key string, cursor int, match string, count int) (newCursor int, keys []string, err error)
 
+	//----------------------Geo-----------------------------
+	GeoAdd(key string, longitude, latitude float64, member interface{}, args ...interface{}) (createNum int, err error)
+	GeoHash(key string, members ...interface{}) (hashList []string, err error)
+	GeoDel(key string, members ...interface{}) (removeNum int, err error)
+	GeoDist(key string, member1, member2 interface{}, unit string) (distance string, err error)
+	GeoPos(key string, members ...interface{}) (itudes []string, err error)
+	GeoRadius(key string, longitude, latitude float64, radius interface{}, unit string, count int, sort string) (locationList []Location, err error)
+	GeoRadiusByMember(key string, member interface{}, radius interface{}, unit string, count int, sort string) (locationList []Location, err error)
+
 	//--------------------Pub/Sub---------------------------
 	Publish(channel string, msg string) (receiveNum int, err error)
 	PubSubChannels(pattern string) (channels []string, err error)
 
-	//--------------------Pub/Sub---------------------------
+	//--------------------Script---------------------------
 	EvalOrSha(script string, keyCount int, keysAndArgs ...interface{}) (reply interface{}, err error)
 	EvalOrSha4Int64(script string, keyCount int, keysAndArgs ...interface{}) (res int64, err error)
 	EvalOrSha4String(script string, keyCount int, keysAndArgs ...interface{}) (res string, err error)
@@ -140,6 +150,7 @@ type Conn interface {
 	Exec(multi Multi) (values []interface{}, err error)
 	Watch(keys ...interface{}) (ok bool, err error)
 	UnWatch(keys ...interface{}) (ok bool, err error)
+	Discard() (ok bool, err error)
 
 	//-----------------Server--------------------------
 	ClientList() (clients []string, err error)
@@ -161,6 +172,10 @@ func (r *redis) Close() (err error) {
 
 func (r *redis) Do(cmd string, args ...interface{}) (reply interface{}, err error) {
 	return r.conn.Do(cmd, args...)
+}
+
+func (r *redis) Send(cmd string, args ...interface{}) (err error) {
+	return r.conn.Send(cmd, args...)
 }
 
 //region 1.0 Key
@@ -828,7 +843,7 @@ func (r *redis) ZScan(key string, cursor int, match string, count int) (newCurso
 
 //endregion
 
-//region 1.6 Pub/Sub
+//region 1.7 Pub/Sub
 
 func (r *redis) Publish(channel string, msg string) (receiveNum int, err error) {
 	return redigo.Int(r.conn.Do("PUBLISH", channel, msg))
@@ -840,7 +855,7 @@ func (r *redis) PubSubChannels(pattern string) (channels []string, err error) {
 
 //endregion
 
-//region 1.7 Script
+//region 1.8 Script
 
 func (r *redis) EvalOrSha(script string, keyCount int, keysAndArgs ...interface{}) (reply interface{}, err error) {
 	s := redigo.NewScript(keyCount, script)
@@ -859,7 +874,7 @@ func (r *redis) EvalOrSha4String(script string, keyCount int, keysAndArgs ...int
 
 //endregion
 
-//region 1.8 Transaction
+//region 1.9 Transaction
 
 func (r *redis) Multi(kind uint8) (multi Multi, err error) {
 	switch kind {
@@ -888,6 +903,12 @@ func (r *redis) Exec(multi Multi) (values []interface{}, err error) {
 	return redigo.Values(r.conn.Do("EXEC"))
 }
 
+func (r *redis) Discard() (ok bool, err error) {
+	var res string
+	res, err = String(r.conn.Do("DISCARD"))
+	return res == Ok, err
+}
+
 func (r *redis) Watch(keys ...interface{}) (ok bool, err error) {
 	var res string
 	res, err = String(r.conn.Do("WATCH", keys...))
@@ -902,7 +923,7 @@ func (r *redis) UnWatch(keys ...interface{}) (ok bool, err error) {
 
 //endregion
 
-//region 1.9 Server
+//region 2.0 Server
 
 func (r *redis) ClientList() (clients []string, err error) {
 	var clientsStr string

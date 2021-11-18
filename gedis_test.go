@@ -5,6 +5,7 @@ import (
 	"github.com/grpc-boot/base"
 	"log"
 	"math/rand"
+	"strconv"
 	"testing"
 	"time"
 )
@@ -683,5 +684,115 @@ func TestRedis_Multi(t *testing.T) {
 		t.Log(values[1].(int64))
 		t.Log(String(values[2], nil))
 		t.Log(redigo.StringMap(values[3], nil))
+	}
+}
+
+func TestRedis_GeoRadiusByMemberWithDist(t *testing.T) {
+	r, err := g.Get(`test_multi`)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer g.Put(r)
+
+	type Loc struct {
+		id   int64
+		addr string
+		lng  float64
+		lat  float64
+	}
+
+	var (
+		key         = `test_geo`
+		addressList = []Loc{
+			{0, `北京市朝阳区酒仙桥路6号`, 116.49089, 39.982661},
+			{1, `阿里中心·望京B座`, 116.489874, 40.002424},
+			{2, `百度大厦`, 116.301444, 40.050923},
+			{3, `腾讯北京总部大楼`, 116.273514, 40.040417},
+			{4, `天津站`, 117.209954, 39.136507},
+			{5, `天津南站`, 117.061157, 39.057157},
+			{6, `天津西站`, 117.163322, 39.158351},
+			{7, `北京站`, 116.427048, 39.902802},
+			{8, `北京南站`, 116.379007, 39.865011},
+			{9, `北京西站`, 116.321592, 39.894793},
+			{10, `北京朝阳站`, 116.507718, 39.944463},
+		}
+	)
+
+	locList, err := r.GeoRadius(key, 0, 0, 200, "m", 10, "DESC")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, loc := range locList {
+		t.Logf("mem:%s distance:%s hash:%d lat:%f lng:%f \n", loc.Member, loc.Distance, loc.Hash, loc.Lat, loc.Lng)
+		index, _ := strconv.Atoi(loc.Member)
+		addr := addressList[index]
+		t.Logf("id:%d addr:%s lat:%f lng:%f \n", addr.id, addr.addr, addr.lat, addr.lng)
+	}
+
+	locList, err = r.GeoRadius(key, 0, 0, 1, "km", 0, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, loc := range locList {
+		t.Logf("mem:%s distance:%s hash:%d lat:%f lng:%f \n", loc.Member, loc.Distance, loc.Hash, loc.Lat, loc.Lng)
+		index, _ := strconv.Atoi(loc.Member)
+		addr := addressList[index]
+		t.Logf("id:%d addr:%s lat:%f lng:%f \n", addr.id, addr.addr, addr.lat, addr.lng)
+	}
+
+	locList, err = r.GeoRadiusByMember(key, 1, 100, "km", 0, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, loc := range locList {
+		t.Logf("mem:%s distance:%s hash:%d lat:%f lng:%f \n", loc.Member, loc.Distance, loc.Hash, loc.Lat, loc.Lng)
+		index, _ := strconv.Atoi(loc.Member)
+		addr := addressList[index]
+		t.Logf("id:%d addr:%s lat:%f lng:%f \n", addr.id, addr.addr, addr.lat, addr.lng)
+	}
+
+	args := make([]interface{}, 0, len(addressList)*3-3)
+	for start := 1; start < len(addressList); start++ {
+		args = append(args, addressList[start].lng, addressList[start].lat, addressList[start].id)
+	}
+	createNum, err := r.GeoAdd(key, addressList[0].lng, addressList[0].lat, addressList[0].id, args...)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Logf("createNum:%d", createNum)
+
+	locList, err = r.GeoRadiusByMember(key, addressList[1].id, 1, "km", 0, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, loc := range locList {
+		t.Logf("mem:%s distance:%s hash:%d lat:%f lng:%f \n", loc.Member, loc.Distance, loc.Hash, loc.Lat, loc.Lng)
+		index, _ := strconv.Atoi(loc.Member)
+		addr := addressList[index]
+		t.Logf("id:%d addr:%s lat:%f lng:%f \n", addr.id, addr.addr, addr.lat, addr.lng)
+	}
+
+	locList, err = r.GeoRadius(key, addressList[4].lng, addressList[4].lat, 100, "km", 5, "ASC")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, loc := range locList {
+		t.Logf("mem:%s distance:%s hash:%d lat:%f lng:%f \n", loc.Member, loc.Distance, loc.Hash, loc.Lat, loc.Lng)
+		index, _ := strconv.Atoi(loc.Member)
+		addr := addressList[index]
+		hashList, err := r.GeoHash(key, addr.id)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		t.Logf("id:%d addr:%s geohash:%s lat:%f lng:%f \n", addr.id, addr.addr, hashList[0], addr.lat, addr.lng)
 	}
 }

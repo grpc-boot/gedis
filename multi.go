@@ -137,6 +137,15 @@ type Multi interface {
 	ZRem(key string, members ...interface{}) Multi
 	ZRemRangeByRank(key string, startIndex, stopIndex int) Multi
 
+	//--------------------ZSet---------------------------
+	GeoAdd(key string, longitude, latitude float64, member interface{}, args ...interface{}) Multi
+	GeoHash(key string, members ...interface{}) Multi
+	GeoDel(key string, members ...interface{}) Multi
+	GeoDist(key string, member1, member2 interface{}, unit string) Multi
+	GeoPos(key string, members ...interface{}) Multi
+	GeoRadius(key string, longitude, latitude float64, radius interface{}, unit string, count int, sort string) Multi
+	GeoRadiusByMember(key string, member interface{}, radius interface{}, unit string, count int, sort string) Multi
+
 	Reset()
 	Kind() uint8
 	CmdList() []Cmd
