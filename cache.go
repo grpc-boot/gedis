@@ -2,10 +2,11 @@ package gedis
 
 import (
 	"fmt"
-	redigo "github.com/garyburd/redigo/redis"
 	"strconv"
 	"strings"
 	"time"
+
+	redigo "github.com/garyburd/redigo/redis"
 )
 
 const (

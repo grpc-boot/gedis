@@ -54,12 +54,12 @@ func TestGroup_Range(t *testing.T) {
 	})
 }
 
-func TestRedis_Scan(t *testing.T) {
+func TestPool_Scan(t *testing.T) {
 	newCursor, v, err := default_pl.Scan(0, "*s*", 10)
 	t.Log(newCursor, v, err)
 }
 
-func TestRedis_Dump(t *testing.T) {
+func TestPool_Dump(t *testing.T) {
 	val, err := default_pl.Dump(`tests`)
 	if err != nil {
 		t.Fatal(err.Error())
@@ -68,7 +68,7 @@ func TestRedis_Dump(t *testing.T) {
 	t.Log(val)
 }
 
-func TestRedis_Keys(t *testing.T) {
+func TestPool_Keys(t *testing.T) {
 	keys, err := default_pl.Keys("*")
 	if err != nil {
 		t.Fatal(err.Error())
@@ -77,7 +77,7 @@ func TestRedis_Keys(t *testing.T) {
 	t.Log(keys)
 }
 
-func TestRedis_RandomKey(t *testing.T) {
+func TestPool_RandomKey(t *testing.T) {
 	key, err := default_pl.RandomKey()
 	if err != nil {
 		t.Fatal(err.Error())
@@ -86,7 +86,7 @@ func TestRedis_RandomKey(t *testing.T) {
 	t.Log(key)
 }
 
-func TestRedis_Type(t *testing.T) {
+func TestPool_Type(t *testing.T) {
 	key, err := default_pl.Type(`test`)
 	if err != nil {
 		t.Fatal(err.Error())
@@ -95,7 +95,7 @@ func TestRedis_Type(t *testing.T) {
 	t.Log(key)
 }
 
-func TestRedis_Get(t *testing.T) {
+func TestPool_Get(t *testing.T) {
 	ok, err := default_pl.Set(`test`, time.Now().UnixNano())
 	if err != nil {
 		t.Fatal(err)
@@ -112,7 +112,7 @@ func TestRedis_Get(t *testing.T) {
 	t.Log(val)
 }
 
-func TestRedis_IncrByFloat(t *testing.T) {
+func TestPool_IncrByFloat(t *testing.T) {
 	val, err := default_pl.Incr(`incr-test`)
 	if err != nil {
 		t.Fatal(err)
@@ -134,7 +134,7 @@ func TestRedis_IncrByFloat(t *testing.T) {
 	t.Logf("incr by test:%v", v)
 }
 
-func TestRedis_GetRange(t *testing.T) {
+func TestPool_GetRange(t *testing.T) {
 	var (
 		key = `test_range`
 	)
@@ -161,7 +161,7 @@ func TestRedis_GetRange(t *testing.T) {
 	t.Logf("get range [15-20]:%s", val)
 }
 
-func TestRedis_BitCount(t *testing.T) {
+func TestPool_BitCount(t *testing.T) {
 	var (
 		key = `test_bit`
 	)
@@ -201,7 +201,7 @@ func TestRedis_BitCount(t *testing.T) {
 	t.Log(num)
 }
 
-func TestRedis_MGet(t *testing.T) {
+func TestPool_MGet(t *testing.T) {
 	var keys = []string{
 		"mget0",
 		"mget1",
@@ -267,7 +267,7 @@ func TestRedis_MGet(t *testing.T) {
 	t.Logf("mset:%v", suc)
 }
 
-func TestRedis_HGetAll(t *testing.T) {
+func TestPool_HGetAll(t *testing.T) {
 	var (
 		key    = `test_hash_opt`
 		fields = []string{
@@ -333,7 +333,7 @@ func TestRedis_HGetAll(t *testing.T) {
 	t.Logf("hgetall:%v", kv)
 }
 
-func TestRedis_ConfigSet(t *testing.T) {
+func TestPool_ConfigSet(t *testing.T) {
 	conf, err := default_pl.ConfigGet("*")
 	if err != nil {
 		t.Fatal(err)
@@ -349,7 +349,7 @@ func TestRedis_ConfigSet(t *testing.T) {
 	t.Logf("conf set:%v", ok)
 }
 
-func TestRedis_ClientList(t *testing.T) {
+func TestPool_ClientList(t *testing.T) {
 	list, err := default_pl.ClientList()
 	if err != nil {
 		t.Fatal(err)
@@ -358,7 +358,7 @@ func TestRedis_ClientList(t *testing.T) {
 	t.Logf("client list:%v", list)
 }
 
-func TestRedis_LIndex(t *testing.T) {
+func TestPool_LIndex(t *testing.T) {
 	pl, err := g.Get(`test_list`)
 	if err != nil {
 		t.Fatal(err)
@@ -413,7 +413,7 @@ func TestRedis_LIndex(t *testing.T) {
 	t.Logf("llen length:%d", listLength)
 }
 
-func TestRedis_SScan(t *testing.T) {
+func TestPool_SScan(t *testing.T) {
 	pl, err := g.Get(`test_list`)
 	if err != nil {
 		t.Fatal(err)
@@ -483,7 +483,7 @@ func TestRedis_SScan(t *testing.T) {
 	t.Logf("sscan newCursor:%d members:%v", cursor, members)
 }
 
-func TestRedis_ZScan(t *testing.T) {
+func TestPool_ZScan(t *testing.T) {
 	pl, err := g.Get(`test_list`)
 	if err != nil {
 		t.Fatal(err)
@@ -598,7 +598,7 @@ func TestRedis_ZScan(t *testing.T) {
 	})
 }
 
-func TestRedis_Multi(t *testing.T) {
+func TestPool_Multi(t *testing.T) {
 	pl, err := g.Get(`test_multi`)
 	if err != nil {
 		t.Fatal(err)
@@ -606,7 +606,7 @@ func TestRedis_Multi(t *testing.T) {
 
 	var key = `test_multi`
 
-	m := PipeMulti()
+	m := TransMulti()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -644,7 +644,7 @@ func TestRedis_Multi(t *testing.T) {
 	}
 }
 
-func TestRedis_GeoRadiusByMemberWithDist(t *testing.T) {
+func TestPool_GeoRadiusByMemberWithDist(t *testing.T) {
 	pl, err := g.Get(`test_geo`)
 	if err != nil {
 		t.Fatal(err)
@@ -752,7 +752,7 @@ func TestRedis_GeoRadiusByMemberWithDist(t *testing.T) {
 	}
 }
 
-func TestRedis_GeoRadiusByMember(t *testing.T) {
+func TestPool_GeoRadiusByMember(t *testing.T) {
 	pl, err := g.Get(`test_multi`)
 	if err != nil {
 		t.Fatal(err)
@@ -785,7 +785,7 @@ func TestRedis_GeoRadiusByMember(t *testing.T) {
 	t.Logf("%#v", locationList)
 }
 
-func TestRedis_Acquire(t *testing.T) {
+func TestPool_Acquire(t *testing.T) {
 	pl, err := g.Get(`test_lock`)
 	if err != nil {
 		t.Fatal(err)
@@ -835,7 +835,7 @@ func TestRedis_Acquire(t *testing.T) {
 	t.Logf("got token:%d", token)
 }
 
-func TestRedis_CacheGet(t *testing.T) {
+func TestPool_CacheGet(t *testing.T) {
 	pl, err := g.Get(`test_cache`)
 	if err != nil {
 		t.Fatal(err)
