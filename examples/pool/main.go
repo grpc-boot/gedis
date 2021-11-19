@@ -1,10 +1,3 @@
-# gedis
-
-redis 4 golang
-
-### 1. use pool
-
-```go
 package main
 
 import (
@@ -20,11 +13,11 @@ func main() {
 		Port:            6379,
 		Auth:            "",
 		Db:              0,
-		MaxConnLifetime: 600,  //单位秒
+		MaxConnLifetime: 600, //单位秒
 		MaxIdle:         10,
 		MaxActive:       20,
 		ReadTimeout:     300, //单位毫秒
-		WriteTimeout:    0, //单位毫秒
+		WriteTimeout:    0,   //单位毫秒
 	}
 
 	pool := gedis.NewPool(option)
@@ -42,10 +35,3 @@ func main() {
 	val, _ := pool.Get(key)
 	log.Printf("get val:%s\n", val)
 }
-```
-
-### 2. use group
-
-
-
-

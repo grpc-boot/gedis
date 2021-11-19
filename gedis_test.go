@@ -1,13 +1,14 @@
 package gedis
 
 import (
-	redigo "github.com/garyburd/redigo/redis"
-	"github.com/grpc-boot/base"
 	"log"
 	"math/rand"
 	"strconv"
 	"testing"
 	"time"
+
+	redigo "github.com/garyburd/redigo/redis"
+	"github.com/grpc-boot/base"
 )
 
 var (
