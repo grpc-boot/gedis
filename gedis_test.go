@@ -25,7 +25,7 @@ var (
 		WriteTimeout:    500,
 	}
 
-	p            Pool
+	default_pl   Pool
 	g            Group
 	groupOptions GOption
 )
@@ -35,7 +35,7 @@ type GOption struct {
 }
 
 func init() {
-	p = NewPool(option)
+	default_pl = NewPool(option)
 	err := base.YamlDecodeFile("./app.yml", &groupOptions)
 	if err != nil {
 		log.Fatal(err)
@@ -55,17 +55,12 @@ func TestGroup_Range(t *testing.T) {
 }
 
 func TestRedis_Scan(t *testing.T) {
-	r := p.Get()
-	defer p.Put(r)
-
-	newCursor, v, err := r.Scan(0, "*s*", 10)
+	newCursor, v, err := default_pl.Scan(0, "*s*", 10)
 	t.Log(newCursor, v, err)
 }
 
 func TestRedis_Dump(t *testing.T) {
-	r := p.Get()
-	defer p.Put(r)
-	val, err := r.Dump(`tests`)
+	val, err := default_pl.Dump(`tests`)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
@@ -74,9 +69,7 @@ func TestRedis_Dump(t *testing.T) {
 }
 
 func TestRedis_Keys(t *testing.T) {
-	r := p.Get()
-	defer p.Put(r)
-	keys, err := r.Keys("*")
+	keys, err := default_pl.Keys("*")
 	if err != nil {
 		t.Fatal(err.Error())
 	}
@@ -85,9 +78,7 @@ func TestRedis_Keys(t *testing.T) {
 }
 
 func TestRedis_RandomKey(t *testing.T) {
-	r := p.Get()
-	defer p.Put(r)
-	key, err := r.RandomKey()
+	key, err := default_pl.RandomKey()
 	if err != nil {
 		t.Fatal(err.Error())
 	}
@@ -96,10 +87,7 @@ func TestRedis_RandomKey(t *testing.T) {
 }
 
 func TestRedis_Type(t *testing.T) {
-	r := p.Get()
-	defer p.Put(r)
-
-	key, err := r.Type(`test`)
+	key, err := default_pl.Type(`test`)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
@@ -108,10 +96,7 @@ func TestRedis_Type(t *testing.T) {
 }
 
 func TestRedis_Get(t *testing.T) {
-	r := p.Get()
-	defer p.Put(r)
-
-	ok, err := r.Set(`test`, time.Now().UnixNano())
+	ok, err := default_pl.Set(`test`, time.Now().UnixNano())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -120,7 +105,7 @@ func TestRedis_Get(t *testing.T) {
 		t.Fatal("want true, got false")
 	}
 
-	val, err := r.Get(`test`)
+	val, err := default_pl.Get(`test`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -128,23 +113,20 @@ func TestRedis_Get(t *testing.T) {
 }
 
 func TestRedis_IncrByFloat(t *testing.T) {
-	r := p.Get()
-	defer p.Put(r)
-
-	val, err := r.Incr(`incr-test`)
+	val, err := default_pl.Incr(`incr-test`)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	t.Logf("incr test:%d", val)
 
-	val, err = r.IncrBy(`incr-test`, 10)
+	val, err = default_pl.IncrBy(`incr-test`, 10)
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Logf("incr by test:%d", val)
 
-	v, err := r.IncrByFloat(`incr-test-float`, 101.34)
+	v, err := default_pl.IncrByFloat(`incr-test-float`, 101.34)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -154,26 +136,24 @@ func TestRedis_IncrByFloat(t *testing.T) {
 
 func TestRedis_GetRange(t *testing.T) {
 	var (
-		r   = p.Get()
 		key = `test_range`
 	)
-	defer p.Put(r)
 
-	val, err := r.GetRange(key, 0, -1)
+	val, err := default_pl.GetRange(key, 0, -1)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	t.Logf("get range:%s", val)
 
-	length, err := r.SetRange(key, 15, time.Now().String())
+	length, err := default_pl.SetRange(key, 15, time.Now().String())
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	t.Logf("after setRange length:%d", length)
 
-	val, err = r.GetRange(key, 15, 20)
+	val, err = default_pl.GetRange(key, 15, 20)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -182,42 +162,39 @@ func TestRedis_GetRange(t *testing.T) {
 }
 
 func TestRedis_BitCount(t *testing.T) {
-	r := p.Get()
-	defer p.Put(r)
-
 	var (
 		key = `test_bit`
 	)
 
-	v, err := r.GetBit(key, 1024)
+	v, err := default_pl.GetBit(key, 1024)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	t.Log(v)
 
-	num, err := r.BitCount(key)
+	num, err := default_pl.BitCount(key)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	t.Log(num)
 
-	ok, err := r.SetBit(key, 1024, 1)
+	ok, err := default_pl.SetBit(key, 1024, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	t.Log(ok)
 
-	num, err = r.BitCount(key)
+	num, err = default_pl.BitCount(key)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	t.Log(num)
 
-	num, err = r.BitCount(key, 256, 512)
+	num, err = default_pl.BitCount(key, 256, 512)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -225,9 +202,6 @@ func TestRedis_BitCount(t *testing.T) {
 }
 
 func TestRedis_MGet(t *testing.T) {
-	r := p.Get()
-	defer p.Put(r)
-
 	var keys = []string{
 		"mget0",
 		"mget1",
@@ -242,33 +216,33 @@ func TestRedis_MGet(t *testing.T) {
 		"mget10",
 	}
 
-	values, err := r.MGet(keys...)
+	values, err := default_pl.MGet(keys...)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	t.Logf("mget values:%v", values)
 
-	_, err = r.SetEx(keys[0], 60, time.Now().UnixNano())
+	_, err = default_pl.SetEx(keys[0], 60, time.Now().UnixNano())
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	ok, err := r.SetNx(keys[3], time.Now().UnixNano())
+	ok, err := default_pl.SetNx(keys[3], time.Now().UnixNano())
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	t.Logf("set nx:%v", ok)
 
-	kv, err := r.MGetMap(keys...)
+	kv, err := default_pl.MGetMap(keys...)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	t.Logf("mgetmap:%v", kv)
 
-	suc, err := r.MSetByMap(map[string]interface{}{
+	suc, err := default_pl.MSetByMap(map[string]interface{}{
 		keys[2]: time.Now().UnixNano(),
 		keys[5]: rand.Int63n(time.Now().Unix()),
 	})
@@ -278,14 +252,14 @@ func TestRedis_MGet(t *testing.T) {
 
 	t.Logf("msetmap:%v", suc)
 
-	values, err = r.MGet(keys...)
+	values, err = default_pl.MGet(keys...)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	t.Logf("mget:%+v", values)
 
-	suc, err = r.MSet(keys[6], time.Now().UnixNano(), keys[7], time.Now().Unix())
+	suc, err = default_pl.MSet(keys[6], time.Now().UnixNano(), keys[7], time.Now().Unix())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -294,9 +268,6 @@ func TestRedis_MGet(t *testing.T) {
 }
 
 func TestRedis_HGetAll(t *testing.T) {
-	r := p.Get()
-	defer p.Put(r)
-
 	var (
 		key    = `test_hash_opt`
 		fields = []string{
@@ -313,26 +284,26 @@ func TestRedis_HGetAll(t *testing.T) {
 		}
 	)
 
-	ok, err := r.HSetNx(key, fields[0], time.Now().Unix())
+	ok, err := default_pl.HSetNx(key, fields[0], time.Now().Unix())
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	t.Logf("hsetNx:%v", ok)
 
-	isNew, err := r.HSet(key, fields[0], time.Now().UnixNano())
+	isNew, err := default_pl.HSet(key, fields[0], time.Now().UnixNano())
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Logf("hset:%v", isNew)
 
-	suc, err := r.HMSet(key, fields[1], time.Now().UnixNano(), fields[2], time.Now().Unix())
+	suc, err := default_pl.HMSet(key, fields[1], time.Now().UnixNano(), fields[2], time.Now().Unix())
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Logf("hmset:%v", suc)
 
-	suc, err = r.HMSetMap(key, map[string]interface{}{
+	suc, err = default_pl.HMSetMap(key, map[string]interface{}{
 		fields[3]: time.Now().UnixNano(),
 		fields[4]: time.Now().Unix(),
 	})
@@ -341,20 +312,20 @@ func TestRedis_HGetAll(t *testing.T) {
 	}
 	t.Logf("hmsetmap:%v", suc)
 
-	values, err := r.HMGet(key, fields[0:5]...)
+	values, err := default_pl.HMGet(key, fields[0:5]...)
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Logf("hmget:%v", values)
 
-	kv, err := r.HMGetMap(key, fields[0:5]...)
+	kv, err := default_pl.HMGetMap(key, fields[0:5]...)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	t.Logf("hmgetmap:%v", kv)
 
-	kv, err = r.HGetAll(key)
+	kv, err = default_pl.HGetAll(key)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -363,17 +334,14 @@ func TestRedis_HGetAll(t *testing.T) {
 }
 
 func TestRedis_ConfigSet(t *testing.T) {
-	r := p.Get()
-	defer p.Put(r)
-
-	conf, err := r.ConfigGet("*")
+	conf, err := default_pl.ConfigGet("*")
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	t.Logf("conf timeout:%v", conf["timeout"])
 
-	ok, err := r.ConfigSet("timeout", 0)
+	ok, err := default_pl.ConfigSet("timeout", 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -382,10 +350,7 @@ func TestRedis_ConfigSet(t *testing.T) {
 }
 
 func TestRedis_ClientList(t *testing.T) {
-	r := p.Get()
-	defer p.Put(r)
-
-	list, err := r.ClientList()
+	list, err := default_pl.ClientList()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -394,56 +359,54 @@ func TestRedis_ClientList(t *testing.T) {
 }
 
 func TestRedis_LIndex(t *testing.T) {
-	r, err := g.Get(`test_list`)
+	pl, err := g.Get(`test_list`)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	defer g.Put(r)
-
 	var key = `test_list`
 
-	ok, err := r.LTrim(key, -1, -1)
+	ok, err := pl.LTrim(key, -1, -1)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	t.Logf("ok:%v", ok)
 
-	item, err := r.LPop(key)
+	item, err := pl.LPop(key)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	t.Logf("lpop item:%s", item)
 
-	items, err := r.LRange(key, 0, -1)
+	items, err := pl.LRange(key, 0, -1)
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Logf("lrange :%v", items)
 
-	length, err := r.LPush(key, 10, 1234, []byte(`test item`), 45.67)
+	length, err := pl.LPush(key, 10, 1234, []byte(`test item`), 45.67)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	t.Logf("push length:%d", length)
 
-	items, err = r.LRange(key, 0, -1)
+	items, err = pl.LRange(key, 0, -1)
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Logf("lrange :%v", items)
 
-	item, err = r.RPop(key)
+	item, err = pl.RPop(key)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	t.Logf("rpop item:%s", item)
 
-	listLength, err := r.LLen(key)
+	listLength, err := pl.LLen(key)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -451,70 +414,68 @@ func TestRedis_LIndex(t *testing.T) {
 }
 
 func TestRedis_SScan(t *testing.T) {
-	r, err := g.Get(`test_list`)
+	pl, err := g.Get(`test_list`)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	defer g.Put(r)
-
 	var key = `test_set`
 
-	count, err := r.SCard(key)
+	count, err := pl.SCard(key)
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Logf("scard count:%d", count)
 
-	members, err := r.SMembers(key)
+	members, err := pl.SMembers(key)
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Logf("smembers:%v", members)
 
 	var cursor int
-	cursor, members, err = r.SScan(key, cursor, "", 0)
+	cursor, members, err = pl.SScan(key, cursor, "", 0)
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Logf("newCursor:%d, members:%v", cursor, members)
 
-	addNum, err := r.SAdd(key, time.Now().UnixNano(), time.Now().Hour())
+	addNum, err := pl.SAdd(key, time.Now().UnixNano(), time.Now().Hour())
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	t.Logf("addNum:%d", addNum)
 
-	members, err = r.SInter(key, key+"d")
+	members, err = pl.SInter(key, key+"d")
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	t.Logf("inter list:%v", members)
 
-	suc, err := r.SMove(key, key+"d", time.Now().Hour())
+	suc, err := pl.SMove(key, key+"d", time.Now().Hour())
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	t.Logf("move suc:%v", suc)
 
-	members, err = r.SInter(key, key+"d")
+	members, err = pl.SInter(key, key+"d")
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	t.Logf("inter list:%v", members)
 
-	members, err = r.SUnion(key, key+"d")
+	members, err = pl.SUnion(key, key+"d")
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	t.Logf("union list:%v", members)
 
-	cursor, members, err = r.SScan(key, cursor, "1*", 20)
+	cursor, members, err = pl.SScan(key, cursor, "1*", 20)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -523,40 +484,38 @@ func TestRedis_SScan(t *testing.T) {
 }
 
 func TestRedis_ZScan(t *testing.T) {
-	r, err := g.Get(`test_list`)
+	pl, err := g.Get(`test_list`)
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	defer g.Put(r)
 
 	var (
 		key    = `test_zset`
 		cursor = 0
 	)
 
-	cursor, members, err := r.ZScan(key, cursor, "", 0)
+	cursor, members, err := pl.ZScan(key, cursor, "", 0)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	t.Logf("zscan newCursor:%d members:%v", cursor, members)
 
-	count, err := r.ZCard(key)
+	count, err := pl.ZCard(key)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	t.Logf("zcard:%d", count)
 
-	createNum, err := r.ZAdd(key, 102.23, time.Now().UnixNano(), 101.12, time.Now().UnixNano())
+	createNum, err := pl.ZAdd(key, 102.23, time.Now().UnixNano(), 101.12, time.Now().UnixNano())
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	t.Logf("zadd createNum:%d", createNum)
 
-	createNum, err = r.ZAddMap(key, map[string]interface{}{
+	createNum, err = pl.ZAddMap(key, map[string]interface{}{
 		"m1": 145.34,
 		"m2": 101,
 		"m3": 3,
@@ -570,63 +529,63 @@ func TestRedis_ZScan(t *testing.T) {
 
 	t.Logf("zaddmap createNum:%d", createNum)
 
-	count, err = r.ZCard(key)
+	count, err = pl.ZCard(key)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	t.Logf("zcard:%d", count)
 
-	members, err = r.ZRange(key, 0, -1)
+	members, err = pl.ZRange(key, 0, -1)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	t.Logf("zrange:%v", members)
 
-	members, err = r.ZRevRange(key, 0, -1)
+	members, err = pl.ZRevRange(key, 0, -1)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	t.Logf("zrevrange:%v", members)
 
-	rankIndex, err := r.ZRank(key, "m2")
+	rankIndex, err := pl.ZRank(key, "m2")
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	t.Logf("zrank index:%d", rankIndex)
 
-	score, err := r.ZScore(key, "m3")
+	score, err := pl.ZScore(key, "m3")
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	t.Logf("zscore score:%s", score)
 
-	rankIndex, err = r.ZRevRank(key, "m2")
+	rankIndex, err = pl.ZRevRank(key, "m2")
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	t.Logf("zrevrank index:%d", rankIndex)
 
-	count, err = r.ZCount(key, "(102.23", "234")
+	count, err = pl.ZCount(key, "(102.23", "234")
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	t.Logf("zcount count:%d", count)
 
-	newScore, err := r.ZIncrBy(key, 1.2, "m3")
+	newScore, err := pl.ZIncrBy(key, 1.2, "m3")
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	t.Logf("ZIncrBy newScore:%s", newScore)
 
-	mem, err := r.ZRevRangeByScoreWithScore(key, 234, "102.23", 0, 10)
+	mem, err := pl.ZRevRangeByScoreWithScore(key, 234, "102.23", 0, 10)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -640,16 +599,14 @@ func TestRedis_ZScan(t *testing.T) {
 }
 
 func TestRedis_Multi(t *testing.T) {
-	r, err := g.Get(`test_multi`)
+	pl, err := g.Get(`test_multi`)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	defer g.Put(r)
-
 	var key = `test_multi`
 
-	m, err := r.Multi(Transaction)
+	m := PipeMulti()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -657,14 +614,14 @@ func TestRedis_Multi(t *testing.T) {
 	m.Set(key, 5)
 	m.Incr(key).IncrBy(key, 34)
 
-	values, err := r.Exec(m)
+	values, err := pl.Exec(m)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	t.Logf("%v", values)
 
-	m, err = r.Multi(Pipeline)
+	m = PipeMulti()
 
 	key = `test_multi_pipe`
 	m.HGet(key, `date`).HSet(key, `date`, time.Now().Unix())
@@ -674,7 +631,7 @@ func TestRedis_Multi(t *testing.T) {
 	})
 	m.HGetAll(key)
 
-	values, err = r.Exec(m)
+	values, err = pl.Exec(m)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -688,12 +645,10 @@ func TestRedis_Multi(t *testing.T) {
 }
 
 func TestRedis_GeoRadiusByMemberWithDist(t *testing.T) {
-	r, err := g.Get(`test_geo`)
+	pl, err := g.Get(`test_geo`)
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	defer g.Put(r)
 
 	type Loc struct {
 		id   int64
@@ -719,7 +674,7 @@ func TestRedis_GeoRadiusByMemberWithDist(t *testing.T) {
 		}
 	)
 
-	locList, err := r.GeoRadius(key, 0, 0, 200, "m", 10, "DESC")
+	locList, err := pl.GeoRadius(key, 0, 0, 200, "m", 10, "DESC")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -731,7 +686,7 @@ func TestRedis_GeoRadiusByMemberWithDist(t *testing.T) {
 		t.Logf("id:%d addr:%s lat:%f lng:%f \n", addr.id, addr.addr, addr.lat, addr.lng)
 	}
 
-	locList, err = r.GeoRadius(key, 0, 0, 1, "km", 0, "")
+	locList, err = pl.GeoRadius(key, 0, 0, 1, "km", 0, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -743,7 +698,7 @@ func TestRedis_GeoRadiusByMemberWithDist(t *testing.T) {
 		t.Logf("id:%d addr:%s lat:%f lng:%f \n", addr.id, addr.addr, addr.lat, addr.lng)
 	}
 
-	locList, err = r.GeoRadiusByMember(key, 1, 100, "km", 0, "")
+	locList, err = pl.GeoRadiusByMember(key, 1, 100, "km", 0, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -759,7 +714,7 @@ func TestRedis_GeoRadiusByMemberWithDist(t *testing.T) {
 	for start := 1; start < len(addressList); start++ {
 		args = append(args, addressList[start].lng, addressList[start].lat, addressList[start].id)
 	}
-	createNum, err := r.GeoAdd(key, addressList[0].lng, addressList[0].lat, addressList[0].id, args...)
+	createNum, err := pl.GeoAdd(key, addressList[0].lng, addressList[0].lat, addressList[0].id, args...)
 
 	if err != nil {
 		t.Fatal(err)
@@ -767,7 +722,7 @@ func TestRedis_GeoRadiusByMemberWithDist(t *testing.T) {
 
 	t.Logf("createNum:%d", createNum)
 
-	locList, err = r.GeoRadiusByMember(key, addressList[1].id, 1, "km", 0, "")
+	locList, err = pl.GeoRadiusByMember(key, addressList[1].id, 1, "km", 0, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -779,7 +734,7 @@ func TestRedis_GeoRadiusByMemberWithDist(t *testing.T) {
 		t.Logf("id:%d addr:%s lat:%f lng:%f \n", addr.id, addr.addr, addr.lat, addr.lng)
 	}
 
-	locList, err = r.GeoRadius(key, addressList[4].lng, addressList[4].lat, 100, "km", 5, "ASC")
+	locList, err = pl.GeoRadius(key, addressList[4].lng, addressList[4].lat, 100, "km", 5, "ASC")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -788,7 +743,7 @@ func TestRedis_GeoRadiusByMemberWithDist(t *testing.T) {
 		t.Logf("mem:%s distance:%s hash:%d lat:%f lng:%f \n", loc.Member, loc.Distance, loc.Hash, loc.Lat, loc.Lng)
 		index, _ := strconv.Atoi(loc.Member)
 		addr := addressList[index]
-		hashList, err := r.GeoHash(key, addr.id)
+		hashList, err := pl.GeoHash(key, addr.id)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -798,16 +753,14 @@ func TestRedis_GeoRadiusByMemberWithDist(t *testing.T) {
 }
 
 func TestRedis_GeoRadiusByMember(t *testing.T) {
-	r, err := g.Get(`test_multi`)
+	pl, err := g.Get(`test_multi`)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	defer g.Put(r)
-
 	var key = `test_geo`
 
-	m, err := r.Multi(Pipeline)
+	m := PipeMulti()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -817,7 +770,7 @@ func TestRedis_GeoRadiusByMember(t *testing.T) {
 	m.GeoPos(key, 3, 4)
 	m.GeoRadiusByMember(key, 0, 100, "km", 10, "")
 
-	values, err := r.Exec(m)
+	values, err := pl.Exec(m)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -833,18 +786,16 @@ func TestRedis_GeoRadiusByMember(t *testing.T) {
 }
 
 func TestRedis_Acquire(t *testing.T) {
-	r, err := g.Get(`test_lock`)
+	pl, err := g.Get(`test_lock`)
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	defer g.Put(r)
 
 	var (
 		key = `test_lock`
 	)
 
-	token, err := r.Acquire(key, 3)
+	token, err := pl.Acquire(key, 3)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -855,7 +806,7 @@ func TestRedis_Acquire(t *testing.T) {
 
 	t.Logf("got token:%d", token)
 
-	failToken, err := r.Acquire(key, 3)
+	failToken, err := pl.Acquire(key, 3)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -864,7 +815,7 @@ func TestRedis_Acquire(t *testing.T) {
 		t.Fatalf("want 0, got %d", failToken)
 	}
 
-	ok, err := r.Release(key, token)
+	ok, err := pl.Release(key, token)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -873,7 +824,7 @@ func TestRedis_Acquire(t *testing.T) {
 		t.Fatalf("want true, got %v", ok)
 	}
 
-	token, err = r.Acquire(key, 3)
+	token, err = pl.Acquire(key, 3)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -882,4 +833,95 @@ func TestRedis_Acquire(t *testing.T) {
 		t.Fatal("want >0, got 0")
 	}
 	t.Logf("got token:%d", token)
+}
+
+func TestRedis_CacheGet(t *testing.T) {
+	pl, err := g.Get(`test_cache`)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var (
+		item Item
+		key  = `test_cache`
+	)
+
+	item, err = pl.CacheGet(key, 10, func() []byte {
+		time.Sleep(time.Second * 2)
+		return []byte(time.Now().String())
+	})
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Logf("item:%+v value:%s \n", item, base.Bytes2String(item.Value))
+
+	item, err = pl.CacheGet(key, 10, func() []byte {
+		time.Sleep(time.Second)
+		return []byte(time.Now().String())
+	})
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !item.Hit {
+		t.Fatalf("want true, got %v\n", item.Hit)
+	}
+	t.Logf("item:%+v value:%s \n", item, base.Bytes2String(item.Value))
+
+	ok, err := pl.CacheRemove(key)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !ok {
+		t.Fatalf("want true, got %v\n", ok)
+	}
+
+	item, err = pl.CacheGet(key, 10, func() []byte {
+		time.Sleep(time.Second)
+		return []byte(time.Now().String())
+	})
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if item.Hit {
+		t.Fatalf("want false, got %v\n", item.Hit)
+	}
+
+	t.Logf("item:%+v value:%s \n", item, base.Bytes2String(item.Value))
+}
+
+func BenchmarkRedis_CacheGet(b *testing.B) {
+	pl, err := g.Get(`test_cache`)
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	var (
+		key = `test_cache`
+	)
+
+	b.ResetTimer()
+
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			item, err := pl.CacheGet(key, 10, func() []byte {
+				time.Sleep(time.Second)
+				return []byte(time.Now().String())
+			})
+
+			if err != nil {
+				b.Fatal(err)
+			}
+
+			if !item.Hit {
+				b.Logf("not hit")
+			}
+		}
+	})
 }

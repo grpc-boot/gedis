@@ -156,13 +156,16 @@ type Cmd struct {
 	args []interface{}
 }
 
-func (c Cmd) Info() (cmd string, args []interface{}) {
-	return c.cmd, c.args
-}
-
 type multi struct {
 	kind    uint8
 	cmdList []Cmd
+}
+
+func NewMulti(kind uint8) Multi {
+	return &multi{
+		kind:    kind,
+		cmdList: make([]Cmd, 0),
+	}
 }
 
 func (m *multi) Del(keys ...interface{}) Multi {

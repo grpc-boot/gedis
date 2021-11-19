@@ -1,7 +1,6 @@
 package gedis
 
 import (
-	"context"
 	"errors"
 
 	"github.com/grpc-boot/base"
@@ -17,13 +16,9 @@ type GroupOption struct {
 }
 
 type Group interface {
-	GetPool(key string) (p Pool, err error)
-	Get(key string) (redis Conn, err error)
-	Index(index int) (redis Conn, err error)
-	IndexContext(ctx context.Context, index int) (redis Conn, err error)
-	GetContext(ctx context.Context, key string) (redis Conn, err error)
+	Get(key string) (p Pool, err error)
+	Index(index int) (p Pool, err error)
 	Range(handler func(index int, p Pool, hitCount uint64) (handled bool))
-	Put(redis Conn) (err error)
 }
 
 type group struct {
@@ -57,7 +52,7 @@ func NewGroup(options ...GroupOption) (g Group, err error) {
 	return g, nil
 }
 
-func (g *group) GetPool(key string) (p Pool, err error) {
+func (g *group) Get(key string) (pool Pool, err error) {
 	var r base.CanHash
 	r, err = g.ring.Get(key)
 	if err != nil {
@@ -67,51 +62,17 @@ func (g *group) GetPool(key string) (p Pool, err error) {
 	return r.(Pool), nil
 }
 
-func (g *group) Get(key string) (redis Conn, err error) {
-	r, err := g.ring.Get(key)
-	if err != nil {
-		return nil, err
-	}
-
-	redis = r.(Pool).Get()
-
-	return
-}
-
-func (g *group) Index(index int) (redis Conn, err error) {
+func (g *group) Index(index int) (pool Pool, err error) {
 	r, err := g.ring.Index(index)
 	if err != nil {
 		return nil, err
 	}
 
-	redis = r.(Pool).Get()
-	return
-}
-
-func (g *group) IndexContext(ctx context.Context, index int) (redis Conn, err error) {
-	r, err := g.ring.Index(index)
-	if err != nil {
-		return nil, err
-	}
-
-	return r.(Pool).GetContext(ctx)
-}
-
-func (g *group) GetContext(ctx context.Context, key string) (redis Conn, err error) {
-	r, err := g.ring.Get(key)
-	if err != nil {
-		return nil, err
-	}
-
-	return r.(Pool).GetContext(ctx)
+	return r.(Pool), nil
 }
 
 func (g *group) Range(handler func(index int, p Pool, hitCount uint64) (handled bool)) {
 	g.ring.Range(func(index int, server base.CanHash, hitCount uint64) (handled bool) {
 		return handler(index, server.(Pool), hitCount)
 	})
-}
-
-func (g *group) Put(redis Conn) (err error) {
-	return redis.Close()
 }

@@ -80,8 +80,7 @@ func publish() {
 
 		ch, msg := fmt.Sprintf("chan%d", num%2+1), fmt.Sprintf(`{"id":%d, "cmd":"chat", "data":{}}`, num)
 		p := gedis.NewPool(option)
-		r := p.Get()
-		recNum, err = r.Publish(ch, msg)
+		recNum, err = p.Publish(ch, msg)
 		if err != nil {
 			base.Red("publish err:%s", err.Error())
 			continue

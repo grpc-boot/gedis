@@ -1,80 +1,128 @@
 package gedis
 
 import (
+	"fmt"
+	redigo "github.com/garyburd/redigo/redis"
 	"strconv"
+	"strings"
 	"time"
 )
 
 const (
-	maxTimeoutSecond  = 3600 * 24 * 14
+	overflowFlag      = `increment or decrement would overflow`
+	cacheKeyFormat    = `ged_C:%s`
 	lockTimeoutSecond = 5
 )
 
 type Item struct {
-	ExpireAt int64  `json:"expire_at"`
-	Value    []byte `json:"value"`
+	Hit       bool   `json:"hit"`
+	CreateAt  int64  `json:"create_at"`
+	UpdateAt  int64  `json:"update_at"`
+	ExpireAt  int64  `json:"expire_at"`
+	MissCount int64  `json:"miss_count"`
+	HitCount  int64  `json:"hit_count"`
+	Value     []byte `json:"value"`
 }
 
-func (r *redis) updateCache(key string, item *Item, current int64, timeoutSecond int64, handler func() []byte) []byte {
+func (p *pool) updateCache(key string, item *Item, current int64, timeoutSecond int64, handler func() []byte) (err error) {
+	if item.CreateAt < 1 {
+		item.CreateAt = current
+	}
+	item.UpdateAt = current
 	item.ExpireAt = current + timeoutSecond
 	item.Value = handler()
 
 	if item.Value != nil {
-		m, _ := r.Multi(Pipeline)
-		m.HMSet(key, "expire_at", item.ExpireAt, "value", item.Value)
-		m.Expire(key, maxTimeoutSecond)
-		_, _ = r.Exec(m)
+		m := PipeMulti()
+		m.HMSet(key, "expire_at", item.ExpireAt, "update_at", current, "create_at", item.CreateAt, "value", item.Value)
+		m.HIncrBy(key, "miss_count", 1)
+		var res []interface{}
+		res, err = p.Exec(m)
+		if len(res) == 2 {
+			switch mc := res[1].(type) {
+			case int64:
+				item.MissCount = mc
+			case redigo.Error:
+				if strings.Contains(mc.Error(), overflowFlag) {
+					_, err = p.HSet(key, "miss_count", 0)
+				}
+			}
+		}
 	}
-	return item.Value
+
+	return
 }
 
-func (r *redis) Cache(key string, timeoutSecond int64, handler func() []byte) (value []byte) {
+func (p *pool) CacheRemove(key string) (ok bool, err error) {
+	key = fmt.Sprintf(cacheKeyFormat, key)
+	_, err = p.HSet(key, "expire_at", 0)
+	return err == nil, err
+}
+
+func (p *pool) CacheGet(key string, timeoutSecond int64, handler func() []byte) (item Item, err error) {
 	var (
-		item       Item
 		redisValue map[string]string
-		err        error
 		current    = time.Now().Unix()
 	)
 
-	redisValue, err = r.HGetAll(key)
+	key = fmt.Sprintf(cacheKeyFormat, key)
+
+	redisValue, err = p.HGetAll(key)
 	if err != nil {
 		return
 	}
 
 	//redis中没有数据
 	if redisValue == nil {
-		return r.updateCache(key, &item, current, timeoutSecond, handler)
+		err = p.updateCache(key, &item, current, timeoutSecond, handler)
+		return item, err
 	}
 
 	//从redis中取值
-	expireAt, exists := redisValue["expire_at"]
-	if !exists {
-		return r.updateCache(key, &item, current, timeoutSecond, handler)
+	if createAt, exists := redisValue["create_at"]; exists {
+		item.CreateAt, _ = strconv.ParseInt(createAt, 10, 64)
 	}
+	if missCount, exists := redisValue["miss_count"]; exists {
+		item.MissCount, _ = strconv.ParseInt(missCount, 10, 64)
+	}
+	if hitCount, exists := redisValue["hit_count"]; exists {
+		item.HitCount, _ = strconv.ParseInt(hitCount, 10, 64)
+	}
+	if expireAt, exists := redisValue["expire_at"]; exists {
+		item.ExpireAt, _ = strconv.ParseInt(expireAt, 10, 64)
+	}
+
 	val, ok := redisValue["value"]
-	if !ok {
-		return r.updateCache(key, &item, current, timeoutSecond, handler)
+	if item.ExpireAt == 0 || !ok {
+		err = p.updateCache(key, &item, current, timeoutSecond, handler)
+		return item, err
 	}
+
 	item.Value = []byte(val)
 
-	item.ExpireAt, _ = strconv.ParseInt(expireAt, 10, 64)
 	//缓存有效
 	if item.ExpireAt > current {
-		return item.Value
+		item.Hit = true
+		item.HitCount, err = p.HIncrBy(key, "hit_count", 1)
+		if err != nil && strings.Contains(err.Error(), overflowFlag) {
+			_, err = p.HSet(key, "hit_count", 0)
+		}
+		return item, err
 	}
 
 	//-------------------缓存失效-----------------------
 	//去拿锁
-	token, _ := r.Acquire(key, lockTimeoutSecond)
+	token, _ := p.Acquire(key, lockTimeoutSecond)
+
 	//未获得锁
 	if token == 0 {
-		return item.Value
+		return item, nil
 	}
 
-	//获得锁
 	defer func() {
-		_, _ = r.Release(key, token)
+		_, err = p.Release(key, token)
 	}()
 
-	return r.updateCache(key, &item, current, timeoutSecond, handler)
+	err = p.updateCache(key, &item, current, timeoutSecond, handler)
+	return item, err
 }

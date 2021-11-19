@@ -19,16 +19,16 @@ type Location struct {
 
 //region 1.6 Geo
 
-func (r *redis) GeoAdd(key string, longitude, latitude float64, member interface{}, args ...interface{}) (createNum int, err error) {
+func (p *pool) GeoAdd(key string, longitude, latitude float64, member interface{}, args ...interface{}) (createNum int, err error) {
 	var (
 		params = make([]interface{}, 0, len(args)+4)
 	)
 	params = append(params, key, longitude, latitude, member)
 	params = append(params, args...)
-	return redigo.Int(r.conn.Do("GEOADD", params...))
+	return redigo.Int(p.Do("GEOADD", params...))
 }
 
-func (r *redis) GeoHash(key string, members ...interface{}) (hashList []string, err error) {
+func (p *pool) GeoHash(key string, members ...interface{}) (hashList []string, err error) {
 	var (
 		args = make([]interface{}, 0, len(members)+1)
 	)
@@ -36,18 +36,18 @@ func (r *redis) GeoHash(key string, members ...interface{}) (hashList []string, 
 	args = append(args, key)
 	args = append(args, members...)
 
-	return redigo.Strings(r.conn.Do("GEOHASH", args...))
+	return redigo.Strings(p.Do("GEOHASH", args...))
 }
 
-func (r *redis) GeoDel(key string, members ...interface{}) (removeNum int, err error) {
-	return r.ZRem(key, members)
+func (p *pool) GeoDel(key string, members ...interface{}) (removeNum int, err error) {
+	return p.ZRem(key, members)
 }
 
-func (r *redis) GeoDist(key string, member1, member2 interface{}, unit string) (distance string, err error) {
-	return String(r.conn.Do("GEODIST", key, member1, member2, unit))
+func (p *pool) GeoDist(key string, member1, member2 interface{}, unit string) (distance string, err error) {
+	return String(p.Do("GEODIST", key, member1, member2, unit))
 }
 
-func (r *redis) GeoPos(key string, members ...interface{}) (positionList []Position, err error) {
+func (p *pool) GeoPos(key string, members ...interface{}) (positionList []Position, err error) {
 	var (
 		args = make([]interface{}, 0, len(members)+1)
 	)
@@ -55,31 +55,31 @@ func (r *redis) GeoPos(key string, members ...interface{}) (positionList []Posit
 	args = append(args, key)
 	args = append(args, members...)
 
-	return Positions(r.conn.Do("GEOPOS", args...))
+	return Positions(p.Do("GEOPOS", args...))
 }
 
-func (r *redis) GeoRadius(key string, longitude, latitude float64, radius interface{}, unit string, count int, sort string) (locationList []Location, err error) {
+func (p *pool) GeoRadius(key string, longitude, latitude float64, radius interface{}, unit string, count int, sort string) (locationList []Location, err error) {
 	if sort == "" {
 		sort = "ASC"
 	}
 
 	if count == 0 {
-		return Locations(r.conn.Do("GEORADIUS", key, longitude, latitude, radius, unit, "WITHCOORD", "WITHHASH", "WITHDIST", sort))
+		return Locations(p.Do("GEORADIUS", key, longitude, latitude, radius, unit, "WITHCOORD", "WITHHASH", "WITHDIST", sort))
 	}
 
-	return Locations(r.conn.Do("GEORADIUS", key, longitude, latitude, radius, unit, "WITHCOORD", "WITHHASH", "WITHDIST", "COUNT", count, sort))
+	return Locations(p.Do("GEORADIUS", key, longitude, latitude, radius, unit, "WITHCOORD", "WITHHASH", "WITHDIST", "COUNT", count, sort))
 }
 
-func (r *redis) GeoRadiusByMember(key string, member interface{}, radius interface{}, unit string, count int, sort string) (locationList []Location, err error) {
+func (p *pool) GeoRadiusByMember(key string, member interface{}, radius interface{}, unit string, count int, sort string) (locationList []Location, err error) {
 	if sort == "" {
 		sort = "ASC"
 	}
 
 	if count == 0 {
-		return Locations(r.conn.Do("GEORADIUSBYMEMBER", key, member, radius, unit, "WITHCOORD", "WITHHASH", "WITHDIST", sort))
+		return Locations(p.Do("GEORADIUSBYMEMBER", key, member, radius, unit, "WITHCOORD", "WITHHASH", "WITHDIST", sort))
 	}
 
-	return Locations(r.conn.Do("GEORADIUSBYMEMBER", key, member, radius, unit, "WITHCOORD", "WITHHASH", "WITHDIST", "COUNT", count, sort))
+	return Locations(p.Do("GEORADIUSBYMEMBER", key, member, radius, unit, "WITHCOORD", "WITHHASH", "WITHDIST", "COUNT", count, sort))
 
 }
 
