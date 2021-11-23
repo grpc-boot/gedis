@@ -2,7 +2,6 @@ package gedis
 
 import (
 	"errors"
-
 	"github.com/grpc-boot/base"
 )
 
@@ -16,7 +15,8 @@ type GroupOption struct {
 }
 
 type Group interface {
-	Get(key string) (p Pool, err error)
+	Get(key interface{}) (p Pool, err error)
+	GetByNumber(key int64) (p Pool, err error)
 	Index(index int) (p Pool, err error)
 	Range(handler func(index int, p Pool, hitCount uint64) (handled bool))
 }
@@ -52,7 +52,7 @@ func NewGroup(options ...GroupOption) (g Group, err error) {
 	return g, nil
 }
 
-func (g *group) Get(key string) (pool Pool, err error) {
+func (g *group) Get(key interface{}) (pool Pool, err error) {
 	var r base.CanHash
 	r, err = g.ring.Get(key)
 	if err != nil {
