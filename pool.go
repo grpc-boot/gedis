@@ -182,11 +182,12 @@ type Pool interface {
 	//--------------------Transaction---------------------------
 	Exec(multi Multi) (values []interface{}, err error)
 
-	//--------------------Lock/Cache---------------------------
+	//--------------------Lock/Limit/Cache---------------------------
 	Acquire(key string, timeoutSecond int) (token int64, err error)
 	Release(key string, token int64) (ok bool, err error)
 	CacheGet(key string, timeoutSecond int64, handler func() []byte) (item Item, err error)
 	CacheRemove(key string) (ok bool, err error)
+	LimitWithSecond(key string, limit int, reqNum int) (ok bool, err error)
 
 	//-----------------Server--------------------------
 	ClientList() (clients []string, err error)
