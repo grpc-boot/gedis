@@ -187,7 +187,12 @@ type Pool interface {
 	Release(key string, token int64) (ok bool, err error)
 	CacheGet(key string, timeoutSecond int64, handler func() []byte) (item Item, err error)
 	CacheRemove(key string) (ok bool, err error)
-	LimitWithSecond(key string, limit int, reqNum int) (ok bool, err error)
+	GetToken(key string, current int64, capacity, rate, reqNum, keyTimeoutSecond int) (ok bool, err error)
+	SecondLimitByToken(key string, limit int, reqNum int) (ok bool, err error)
+	SecondLimitByTime(key string, limit int, reqNum int) (ok bool, err error)
+	MinuteLimitByTime(key string, limit int, reqNum int) (ok bool, err error)
+	HourLimitByTime(key string, limit int, reqNum int) (ok bool, err error)
+	DayLimitByTime(key string, limit int, reqNum int) (ok bool, err error)
 
 	//-----------------Server--------------------------
 	ClientList() (clients []string, err error)

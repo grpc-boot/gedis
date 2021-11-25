@@ -926,32 +926,3 @@ func BenchmarkRedis_CacheGet(b *testing.B) {
 		}
 	})
 }
-
-func TestPool_GetToken(t *testing.T) {
-	pl, err := g.Get(`test_traffic`)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	var (
-		key = `order:127.0.0.1`
-	)
-
-	ok, err := pl.LimitWithSecond(key, 1, 1)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if !ok {
-		t.Fatalf("want true, got false")
-	}
-
-	ok, err = pl.LimitWithSecond(key, 1, 1)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if ok {
-		t.Fatalf("want false, got true")
-	}
-}
