@@ -15,6 +15,7 @@ const (
 	lockTimeoutSecond = 5
 )
 
+// Item 缓存Item
 type Item struct {
 	Hit       bool   `json:"hit"`
 	CreateAt  int64  `json:"create_at"`
@@ -54,12 +55,14 @@ func (p *pool) updateCache(key string, item *Item, current int64, timeoutSecond 
 	return
 }
 
+// CacheRemove 统计设置缓存过期的方式移除缓存
 func (p *pool) CacheRemove(key string) (ok bool, err error) {
 	key = fmt.Sprintf(cacheKeyFormat, key)
 	_, err = p.HSet(key, "expire_at", 0)
 	return err == nil, err
 }
 
+// CacheGet 通用缓存
 func (p *pool) CacheGet(key string, timeoutSecond int64, handler func() []byte) (item Item, err error) {
 	var (
 		redisValue map[string]string

@@ -2,6 +2,7 @@ package gedis
 
 import (
 	"errors"
+
 	"github.com/grpc-boot/base"
 )
 
@@ -16,17 +17,15 @@ type GroupOption struct {
 
 type Group interface {
 	Get(key interface{}) (p Pool, err error)
-	GetByNumber(key int64) (p Pool, err error)
 	Index(index int) (p Pool, err error)
 	Range(handler func(index int, p Pool, hitCount uint64) (handled bool))
 }
 
 type group struct {
-	Group
-
 	ring base.HashRing
 }
 
+// NewGroup 实例化Group
 func NewGroup(options ...GroupOption) (g Group, err error) {
 	if len(options) < 1 {
 		return nil, ErrOptionEmpty
@@ -52,6 +51,7 @@ func NewGroup(options ...GroupOption) (g Group, err error) {
 	return g, nil
 }
 
+// Get 根据key获取Pool
 func (g *group) Get(key interface{}) (pool Pool, err error) {
 	var r base.CanHash
 	r, err = g.ring.Get(key)
@@ -62,6 +62,7 @@ func (g *group) Get(key interface{}) (pool Pool, err error) {
 	return r.(Pool), nil
 }
 
+// Index 根据索引获取Pool
 func (g *group) Index(index int) (pool Pool, err error) {
 	r, err := g.ring.Index(index)
 	if err != nil {
@@ -71,6 +72,7 @@ func (g *group) Index(index int) (pool Pool, err error) {
 	return r.(Pool), nil
 }
 
+// Range 遍历Pool
 func (g *group) Range(handler func(index int, p Pool, hitCount uint64) (handled bool)) {
 	g.ring.Range(func(index int, server base.CanHash, hitCount uint64) (handled bool) {
 		return handler(index, server.(Pool), hitCount)

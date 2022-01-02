@@ -201,12 +201,11 @@ type Pool interface {
 }
 
 type pool struct {
-	Pool
-
 	pool *redigo.Pool
 	id   []byte
 }
 
+// NewPool 实例化Pool
 func NewPool(option Option) (p Pool) {
 	var dialOptions = []redigo.DialOption{
 		redigo.DialDatabase(int(option.Db)),

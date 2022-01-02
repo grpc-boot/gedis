@@ -8,6 +8,7 @@ import (
 	"github.com/shopspring/decimal"
 )
 
+// String 转换为String
 func String(reply interface{}, err error) (string, error) {
 	if err != nil {
 		return "", err
@@ -27,6 +28,7 @@ func String(reply interface{}, err error) (string, error) {
 	return "", fmt.Errorf("redigo: unexpected type for String, got type %T", reply)
 }
 
+// Locations 转换为Location信息
 func Locations(reply interface{}, err error) ([]Location, error) {
 	if err != nil {
 		return nil, err
@@ -60,6 +62,7 @@ func Locations(reply interface{}, err error) ([]Location, error) {
 	return locationList, nil
 }
 
+// Positions 转换为Position信息
 func Positions(reply interface{}, err error) ([]Position, error) {
 	if err != nil {
 		return nil, err
