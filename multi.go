@@ -161,13 +161,6 @@ type multi struct {
 	cmdList []Cmd
 }
 
-func NewMulti(kind uint8) Multi {
-	return &multi{
-		kind:    kind,
-		cmdList: make([]Cmd, 0),
-	}
-}
-
 func (m *multi) Del(keys ...interface{}) Multi {
 	m.cmdList = append(m.cmdList, Cmd{cmd: "DEL", args: keys})
 	return m
@@ -272,44 +265,59 @@ func (m *multi) Get(key string) Multi {
 
 func (m *multi) MGet(keys ...string) Multi {
 	var (
-		args = make([]interface{}, 0, len(keys))
+		args = make([]interface{}, len(keys))
 	)
-	for _, key := range keys {
-		args = append(args, key)
+
+	for index, _ := range keys {
+		args[index] = keys[index]
 	}
+
 	m.cmdList = append(m.cmdList, Cmd{cmd: "MGET", args: args})
 	return m
 }
 
 func (m *multi) MSet(key1 string, value1 interface{}, keyValues ...interface{}) Multi {
 	var (
-		args = make([]interface{}, 0, len(keyValues)+2)
+		args = make([]interface{}, len(keyValues)+2)
 	)
 
-	args = append(args, key1, value1)
-	args = append(args, keyValues...)
+	args[0] = key1
+	args[1] = value1
+	for index, _ := range keyValues {
+		args[index+2] = keyValues[index]
+	}
+
 	m.cmdList = append(m.cmdList, Cmd{cmd: "MSET", args: args})
 	return m
 }
 
 func (m *multi) MSetByMap(keyValues map[string]interface{}) Multi {
 	var (
-		args = make([]interface{}, 0, 2*len(keyValues))
+		args = make([]interface{}, 2*len(keyValues))
 	)
 
+	start := 0
 	for key, value := range keyValues {
-		args = append(args, key, value)
+		args[start] = key
+		args[start+1] = value
+		start += 2
 	}
+
 	m.cmdList = append(m.cmdList, Cmd{cmd: "MSET", args: args})
 	return m
 }
 
 func (m *multi) Set(key string, value interface{}, args ...interface{}) Multi {
 	var (
-		params = make([]interface{}, 0, len(args)+2)
+		params = make([]interface{}, len(args)+2)
 	)
-	params = append(params, key, value)
-	params = append(params, args...)
+
+	params[0] = key
+	params[1] = value
+	for index, _ := range args {
+		params[index+2] = args[index]
+	}
+
 	m.cmdList = append(m.cmdList, Cmd{cmd: "SET", args: params})
 	return m
 }
@@ -375,9 +383,12 @@ func (m *multi) GetBit(key string, offset int) Multi {
 }
 
 func (m *multi) BitCount(key string, args ...interface{}) Multi {
-	params := make([]interface{}, 0, len(args)+1)
-	params = append(params, key)
-	params = append(params, args...)
+	params := make([]interface{}, len(args)+1)
+	params[0] = key
+	for index, _ := range args {
+		params[index+1] = args[index]
+	}
+
 	m.cmdList = append(m.cmdList, Cmd{cmd: "BITCOUNT", args: params})
 	return m
 }
@@ -399,34 +410,46 @@ func (m *multi) HGet(key string, field string) Multi {
 
 func (m *multi) HMSet(key string, field1 string, value1 interface{}, args ...interface{}) Multi {
 	var (
-		params = make([]interface{}, 0, len(args)+3)
+		params = make([]interface{}, len(args)+3)
 	)
 
-	params = append(params, key, field1, value1)
-	params = append(params, args...)
+	params[0] = key
+	params[1] = field1
+	params[2] = value1
+
+	for index, _ := range args {
+		params[index+3] = args[index]
+	}
+
 	m.cmdList = append(m.cmdList, Cmd{cmd: "HMSET", args: params})
 	return m
 }
 
 func (m *multi) HMSetMap(key string, keyValues map[string]interface{}) Multi {
 	var (
-		args = make([]interface{}, 0, 2*len(keyValues)+1)
+		args = make([]interface{}, 2*len(keyValues)+1)
 	)
 
-	args = append(args, key)
+	args[0] = key
+	index := 0
 	for k, v := range keyValues {
-		args = append(args, k, v)
+		args[index+1] = k
+		args[index+2] = v
+		index += 2
 	}
+
 	m.cmdList = append(m.cmdList, Cmd{cmd: "HMSET", args: args})
 	return m
 }
 
 func (m *multi) HMGet(key string, fields ...string) Multi {
-	args := make([]interface{}, 0, len(fields)+1)
-	args = append(args, key)
-	for _, field := range fields {
-		args = append(args, field)
+	args := make([]interface{}, len(fields)+1)
+
+	args[0] = key
+	for index, _ := range fields {
+		args[index+1] = fields[index]
 	}
+
 	m.cmdList = append(m.cmdList, Cmd{cmd: "HMGET", args: args})
 	return m
 }
@@ -438,12 +461,14 @@ func (m *multi) HGetAll(key string) Multi {
 
 func (m *multi) HDel(key string, fields ...string) Multi {
 	var (
-		args = make([]interface{}, 0, len(fields)+1)
+		args = make([]interface{}, len(fields)+1)
 	)
-	args = append(args, key)
-	for _, field := range fields {
-		args = append(args, field)
+
+	args[0] = key
+	for index, _ := range fields {
+		args[index+1] = fields[index]
 	}
+
 	m.cmdList = append(m.cmdList, Cmd{cmd: "HDEL", args: args})
 	return m
 }
@@ -485,11 +510,12 @@ func (m *multi) LLen(key string) Multi {
 
 func (m *multi) LPush(key string, values ...interface{}) Multi {
 	var (
-		args = make([]interface{}, 0, len(values)+1)
+		args = make([]interface{}, len(values)+1)
 	)
-	args = append(args, key)
-	for _, value := range values {
-		args = append(args, value)
+
+	args[0] = key
+	for index, _ := range values {
+		args[index+1] = values[index]
 	}
 
 	m.cmdList = append(m.cmdList, Cmd{cmd: "LPUSH", args: args})
@@ -528,11 +554,12 @@ func (m *multi) LTrim(key string, start, stop int) Multi {
 
 func (m *multi) RPush(key string, values ...interface{}) Multi {
 	var (
-		args = make([]interface{}, 0, len(values)+1)
+		args = make([]interface{}, len(values)+1)
 	)
-	args = append(args, key)
-	for _, value := range values {
-		args = append(args, value)
+
+	args[0] = key
+	for index, _ := range values {
+		args[index+1] = values[index]
 	}
 
 	m.cmdList = append(m.cmdList, Cmd{cmd: "RPUSH", args: args})
@@ -551,10 +578,14 @@ func (m *multi) RPop(key string) Multi {
 
 func (m *multi) SAdd(key string, members ...interface{}) Multi {
 	var (
-		args = make([]interface{}, 0, len(members)+1)
+		args = make([]interface{}, len(members)+1)
 	)
-	args = append(args, key)
-	args = append(args, members...)
+
+	args[0] = key
+	for index, _ := range members {
+		args[index+1] = members[index]
+	}
+
 	m.cmdList = append(m.cmdList, Cmd{cmd: "SADD", args: args})
 	return m
 }
@@ -586,10 +617,14 @@ func (m *multi) SRandMember(key string, count int) Multi {
 
 func (m *multi) SRem(key string, members ...interface{}) Multi {
 	var (
-		args = make([]interface{}, 0, len(members)+1)
+		args = make([]interface{}, len(members)+1)
 	)
-	args = append(args, key)
-	args = append(args, members...)
+
+	args[0] = key
+	for index, _ := range members {
+		args[index+1] = members[index]
+	}
+
 	m.cmdList = append(m.cmdList, Cmd{cmd: "SREM", args: args})
 	return m
 }
@@ -606,11 +641,11 @@ func (m *multi) SDiff(keys ...interface{}) Multi {
 
 func (m *multi) SDiffStore(destinationSetKey string, keys ...string) Multi {
 	var (
-		args = make([]interface{}, 0, len(keys)+1)
+		args = make([]interface{}, len(keys)+1)
 	)
-	args = append(args, destinationSetKey)
-	for _, key := range keys {
-		args = append(args, key)
+	args[0] = destinationSetKey
+	for index, _ := range keys {
+		args[index+1] = keys[index]
 	}
 
 	m.cmdList = append(m.cmdList, Cmd{cmd: "SDIFFSTORE", args: args})
@@ -624,12 +659,14 @@ func (m *multi) SInter(keys ...interface{}) Multi {
 
 func (m *multi) SInterStore(destinationSetKey string, keys ...string) Multi {
 	var (
-		args = make([]interface{}, 0, len(keys)+1)
+		args = make([]interface{}, len(keys)+1)
 	)
-	args = append(args, destinationSetKey)
-	for _, key := range keys {
-		args = append(args, key)
+
+	args[0] = destinationSetKey
+	for index, _ := range keys {
+		args[index+1] = keys[index]
 	}
+
 	m.cmdList = append(m.cmdList, Cmd{cmd: "SINTERSTORE", args: args})
 	return m
 }
@@ -641,37 +678,48 @@ func (m *multi) SUnion(keys ...interface{}) Multi {
 
 func (m *multi) SUnionStore(destinationSetKey string, keys ...string) Multi {
 	var (
-		args = make([]interface{}, 0, len(keys)+1)
+		args = make([]interface{}, len(keys)+1)
 	)
-	args = append(args, destinationSetKey)
-	for _, key := range keys {
-		args = append(args, key)
+
+	args[0] = destinationSetKey
+	for index, _ := range keys {
+		args[index+1] = keys[index]
 	}
+
 	m.cmdList = append(m.cmdList, Cmd{cmd: "SUNIONSTORE", args: args})
 	return m
 }
 
 func (m *multi) ZAdd(key string, score, value interface{}, scoreAndValues ...interface{}) Multi {
 	var (
-		args = make([]interface{}, 0, len(scoreAndValues)+3)
+		args = make([]interface{}, len(scoreAndValues)+3)
 	)
-	args = append(args, key)
-	args = append(args, score, value)
-	for _, p := range scoreAndValues {
-		args = append(args, p)
+
+	args[0] = key
+	args[1] = score
+	args[2] = value
+
+	for index, _ := range scoreAndValues {
+		args[index+3] = scoreAndValues[index]
 	}
+
 	m.cmdList = append(m.cmdList, Cmd{cmd: "ZADD", args: args})
 	return m
 }
 
 func (m *multi) ZAddMap(key string, membersMap map[string]interface{}) Multi {
 	var (
-		args = make([]interface{}, 0, 2*len(membersMap)+1)
+		args = make([]interface{}, 2*len(membersMap)+1)
 	)
-	args = append(args, key)
+
+	args[0] = key
+	start := 0
 	for value, score := range membersMap {
-		args = append(args, score, value)
+		args[start+1] = score
+		args[start+2] = value
+		start += 2
 	}
+
 	m.cmdList = append(m.cmdList, Cmd{cmd: "ZADD", args: args})
 	return m
 }
@@ -764,10 +812,14 @@ func (m *multi) ZScore(key, member string) Multi {
 
 func (m *multi) ZRem(key string, members ...interface{}) Multi {
 	var (
-		args = make([]interface{}, 0, len(members)+1)
+		args = make([]interface{}, len(members)+1)
 	)
-	args = append(args, key)
-	args = append(args, members...)
+
+	args[0] = key
+	for index, _ := range members {
+		args[index+1] = members[index]
+	}
+
 	m.cmdList = append(m.cmdList, Cmd{cmd: "ZREM", args: args})
 	return m
 }

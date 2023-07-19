@@ -24,21 +24,31 @@ type Location struct {
 // GeoAdd redis命令
 func (p *pool) GeoAdd(key string, longitude, latitude float64, member interface{}, args ...interface{}) (createNum int, err error) {
 	var (
-		params = make([]interface{}, 0, len(args)+4)
+		params = make([]interface{}, len(args)+4)
 	)
-	params = append(params, key, longitude, latitude, member)
-	params = append(params, args...)
+
+	params[0] = key
+	params[1] = longitude
+	params[2] = latitude
+	params[3] = member
+
+	for index, _ := range args {
+		params[index+4] = args[index]
+	}
+
 	return redigo.Int(p.Do("GEOADD", params...))
 }
 
 // GeoHash redis命令
 func (p *pool) GeoHash(key string, members ...interface{}) (hashList []string, err error) {
 	var (
-		args = make([]interface{}, 0, len(members)+1)
+		args = make([]interface{}, len(members)+1)
 	)
 
-	args = append(args, key)
-	args = append(args, members...)
+	args[0] = key
+	for index, _ := range members {
+		args[index+1] = members[index]
+	}
 
 	return redigo.Strings(p.Do("GEOHASH", args...))
 }
@@ -56,11 +66,13 @@ func (p *pool) GeoDist(key string, member1, member2 interface{}, unit string) (d
 // GeoPos redis命令
 func (p *pool) GeoPos(key string, members ...interface{}) (positionList []Position, err error) {
 	var (
-		args = make([]interface{}, 0, len(members)+1)
+		args = make([]interface{}, len(members)+1)
 	)
 
-	args = append(args, key)
-	args = append(args, members...)
+	args[0] = key
+	for index, _ := range members {
+		args[index+1] = members[index]
+	}
 
 	return Positions(p.Do("GEOPOS", args...))
 }
@@ -97,10 +109,18 @@ func (p *pool) GeoRadiusByMember(key string, member interface{}, radius interfac
 // GeoAdd redis命令
 func (m *multi) GeoAdd(key string, longitude, latitude float64, member interface{}, args ...interface{}) Multi {
 	var (
-		params = make([]interface{}, 0, len(args)+4)
+		params = make([]interface{}, len(args)+4)
 	)
-	params = append(params, key, longitude, latitude, member)
-	params = append(params, args...)
+
+	params[0] = key
+	params[1] = longitude
+	params[2] = latitude
+	params[3] = member
+
+	for index, _ := range args {
+		params[index+4] = args[index]
+	}
+
 	m.cmdList = append(m.cmdList, Cmd{cmd: "GEOADD", args: params})
 	return m
 }
@@ -108,11 +128,13 @@ func (m *multi) GeoAdd(key string, longitude, latitude float64, member interface
 // GeoHash redis命令
 func (m *multi) GeoHash(key string, members ...interface{}) Multi {
 	var (
-		args = make([]interface{}, 0, len(members)+1)
+		args = make([]interface{}, len(members)+1)
 	)
 
-	args = append(args, key)
-	args = append(args, members...)
+	args[0] = key
+	for index, _ := range members {
+		args[index+1] = members[index]
+	}
 
 	m.cmdList = append(m.cmdList, Cmd{cmd: "GEOHASH", args: args})
 	return m
@@ -132,11 +154,13 @@ func (m *multi) GeoDist(key string, member1, member2 interface{}, unit string) M
 // GeoPos redis命令
 func (m *multi) GeoPos(key string, members ...interface{}) Multi {
 	var (
-		args = make([]interface{}, 0, len(members)+1)
+		args = make([]interface{}, len(members)+1)
 	)
 
-	args = append(args, key)
-	args = append(args, members...)
+	args[0] = key
+	for index, _ := range members {
+		args[index+1] = members[index]
+	}
 
 	m.cmdList = append(m.cmdList, Cmd{cmd: "GEOPOS", args: args})
 	return m

@@ -3,7 +3,7 @@ redis:
     option:
       host: '127.0.0.1'
       port: 6379
-      maxConnLifetime: 600
+      maxConnLifetimeSecond: 600
       maxIdle: 10
       maxActive: 20
       connectTimeout: 300

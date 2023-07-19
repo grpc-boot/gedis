@@ -3,12 +3,16 @@ package gedis
 import (
 	"fmt"
 	"time"
+
+	redigo "github.com/garyburd/redigo/redis"
 )
 
 const (
 	timeLimitKeyFormat = `%s:%s`
+)
 
-	tokenLimitScript = `
+var (
+	tokenLimitScript = redigo.NewScript(1, `
 		local tKey        = KEYS[1]
 		local tCapacity   = tonumber(ARGV[1])
 		local current     = tonumber(ARGV[2])
@@ -40,14 +44,14 @@ const (
 		redis.call('HSET', tKey, 'remain_token_num', remainTokenNum - reqNum)
 		redis.call('EXPIRE', tKey, tKeyTimeout)
 		return 1
-   `
+   `)
 )
 
 func (p *pool) GetToken(key string, current int64, capacity, rate, reqNum, keyTimeoutSecond int) (ok bool, err error) {
 	var (
 		res int64
 	)
-	res, err = p.EvalOrSha4Int64(tokenLimitScript, 1, key, capacity, current, rate, reqNum, keyTimeoutSecond)
+	res, err = p.EvalOrSha4Int64(tokenLimitScript, key, capacity, current, rate, reqNum, keyTimeoutSecond)
 	return res == 1, err
 }
 

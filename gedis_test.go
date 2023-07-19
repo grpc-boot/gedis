@@ -13,17 +13,17 @@ import (
 
 var (
 	option = Option{
-		Host:            "127.0.0.1",
-		Port:            6379,
-		Auth:            "",
-		Db:              0,
-		MaxConnLifetime: 600,
-		MaxIdle:         10,
-		MaxActive:       20,
-		Wait:            false,
-		ConnectTimeout:  3,
-		ReadTimeout:     200,
-		WriteTimeout:    500,
+		Host:                  "127.0.0.1",
+		Port:                  6379,
+		Auth:                  "",
+		Db:                    0,
+		MaxConnLifetimeSecond: 600,
+		MaxIdle:               10,
+		MaxActive:             20,
+		Wait:                  false,
+		ConnectTimeout:        3,
+		ReadTimeout:           200,
+		WriteTimeout:          500,
 	}
 
 	default_pl   Pool

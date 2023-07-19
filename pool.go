@@ -8,6 +8,7 @@ import (
 
 	redigo "github.com/garyburd/redigo/redis"
 	"github.com/grpc-boot/base"
+	"github.com/grpc-boot/base/core/zaplogger"
 )
 
 const (
@@ -17,23 +18,26 @@ const (
 
 const (
 	lockFormat = "ged_L:%s"
-	delLock    = `if redis.call('get', KEYS[1]) == ARGV[1]
+)
+
+var (
+	delLockScript = redigo.NewScript(1, `if redis.call('get', KEYS[1]) == ARGV[1]
             then
                 return redis.call('del', KEYS[1])
             end
-            return 0`
+            return 0`)
 )
 
 type Option struct {
-	Host string `yaml:"host" json:"host"`
-	Port int    `yaml:"port" json:"port"`
-	Auth string `yaml:"auth" json:"auth"`
-	Db   uint8  `yaml:"db" json:"db"`
-	//单位s
-	MaxConnLifetime int  `yaml:"maxConnLifetime" json:"maxConnLifetime"`
-	MaxIdle         int  `yaml:"maxIdle" json:"maxIdle"`
-	MaxActive       int  `yaml:"maxActive" json:"maxActive"`
-	Wait            bool `yaml:"wait" json:"wait"`
+	Host                  string `yaml:"host" json:"host"`
+	Port                  int    `yaml:"port" json:"port"`
+	Auth                  string `yaml:"auth" json:"auth"`
+	Db                    uint8  `yaml:"db" json:"db"`
+	MaxConnLifetimeSecond int    `yaml:"maxConnLifetimeSecond" json:"maxConnLifetimeSecond"`
+	IdleTimeoutSecond     int    `yaml:"idleTimeoutSecond" json:"idleTimeoutSecond"`
+	MaxIdle               int    `yaml:"maxIdle" json:"maxIdle"`
+	MaxActive             int    `yaml:"maxActive" json:"maxActive"`
+	Wait                  bool   `yaml:"wait" json:"wait"`
 	//单位ms
 	ConnectTimeout int `yaml:"connectTimeout" json:"connectTimeout"`
 	//单位ms
@@ -102,6 +106,7 @@ type Pool interface {
 	HMGet(key string, fields ...string) (values []string, err error)
 	HMGetMap(key string, fields ...string) (keyValues map[string]string, err error)
 	HGetAll(key string) (keyValues map[string]string, err error)
+	HGetAllBytes(key string) (keyValues map[string][]byte, err error)
 	HDel(key string, fields ...string) (delNum int, err error)
 	HExists(key string, field string) (exists bool, err error)
 	HIncrBy(key string, field string, increment int) (val int64, err error)
@@ -175,9 +180,9 @@ type Pool interface {
 	PubSubChannels(pattern string) (channels []string, err error)
 
 	//--------------------Script---------------------------
-	EvalOrSha(script string, keyCount int, keysAndArgs ...interface{}) (reply interface{}, err error)
-	EvalOrSha4Int64(script string, keyCount int, keysAndArgs ...interface{}) (res int64, err error)
-	EvalOrSha4String(script string, keyCount int, keysAndArgs ...interface{}) (res string, err error)
+	EvalOrSha(script *redigo.Script, keysAndArgs ...interface{}) (reply interface{}, err error)
+	EvalOrSha4Int64(script *redigo.Script, keysAndArgs ...interface{}) (res int64, err error)
+	EvalOrSha4String(script *redigo.Script, keysAndArgs ...interface{}) (res string, err error)
 
 	//--------------------Transaction---------------------------
 	Exec(multi Multi) (values []interface{}, err error)
@@ -185,7 +190,7 @@ type Pool interface {
 	//--------------------Lock/Limit/Cache---------------------------
 	Acquire(key string, timeoutSecond int) (token int64, err error)
 	Release(key string, token int64) (ok bool, err error)
-	CacheGet(key string, timeoutSecond int64, handler func() []byte) (item Item, err error)
+	CacheGet(key string, current, timeoutSecond int64, handler Handler) (item Item, err error)
 	CacheRemove(key string) (ok bool, err error)
 	GetToken(key string, current int64, capacity, rate, reqNum, keyTimeoutSecond int) (ok bool, err error)
 	SecondLimitByToken(key string, limit int, reqNum int) (ok bool, err error)
@@ -219,6 +224,8 @@ func NewPool(option Option) (p Pool) {
 	}
 
 	addr := fmt.Sprintf("%s:%d", option.Host, option.Port)
+	id := fmt.Sprintf("%s:%d-%d", option.Host, option.Port, option.Index)
+
 	pl := &redigo.Pool{
 		MaxIdle:   option.MaxIdle,
 		MaxActive: option.MaxActive,
@@ -231,17 +238,27 @@ func NewPool(option Option) (p Pool) {
 				return nil
 			}
 			_, err := c.Do("PING")
+			if err != nil {
+				Error("PING redis failed",
+					zaplogger.Addr(id),
+					zaplogger.Error(err),
+				)
+			}
 			return err
 		},
 	}
 
-	if option.MaxConnLifetime > 0 {
-		pl.MaxConnLifetime = time.Second * time.Duration(option.MaxConnLifetime)
+	if option.MaxConnLifetimeSecond > 0 {
+		pl.MaxConnLifetime = time.Second * time.Duration(option.MaxConnLifetimeSecond)
+	}
+
+	if option.IdleTimeoutSecond > 0 {
+		pl.IdleTimeout = time.Second * time.Duration(option.IdleTimeoutSecond)
 	}
 
 	return &pool{
 		pool: pl,
-		id:   []byte(fmt.Sprintf("%s:%d-%d", option.Host, option.Port, option.Index)),
+		id:   []byte(id),
 	}
 }
 
@@ -266,9 +283,22 @@ func (p *pool) Close() (err error) {
 }
 
 func (p *pool) Do(cmd string, args ...interface{}) (reply interface{}, err error) {
+	start := time.Now()
 	r := p.pool.Get()
 	defer r.Close()
-	return r.Do(cmd, args...)
+
+	reply, err = r.Do(cmd, args...)
+
+	if err != nil {
+		Error("do redis cmd failed",
+			zaplogger.Addr(base.Bytes2String(p.id)),
+			zaplogger.Error(err),
+			zaplogger.Cmd(cmd),
+			zaplogger.Args(args...),
+			zaplogger.Duration(time.Since(start)),
+		)
+	}
+	return
 }
 
 //region 1.0 Key
@@ -436,10 +466,15 @@ func (p *pool) MSetByMap(keyValues map[string]interface{}) (ok bool, err error) 
 func (p *pool) Set(key string, value interface{}, args ...interface{}) (ok bool, err error) {
 	var (
 		res    string
-		params = make([]interface{}, 0, len(args)+2)
+		params = make([]interface{}, len(args)+2)
 	)
-	params = append(params, key, value)
-	params = append(params, args...)
+
+	params[0] = key
+	params[1] = value
+	for index, _ := range args {
+		params[index+2] = args[index]
+	}
+
 	res, err = String(p.Do("SET", params...))
 	return res == Ok, err
 }
@@ -580,6 +615,9 @@ func (p *pool) HGetAll(key string) (keyValues map[string]string, err error) {
 	return redigo.StringMap(p.Do("HGETALL", key))
 }
 
+func (p *pool) HGetAllBytes(key string) (keyValues map[string][]byte, err error) {
+	return BytesMap(p.Do("HGETALL", key))
+}
 func (p *pool) HDel(key string, fields ...string) (delNum int, err error) {
 	var (
 		args = make([]interface{}, 0, len(fields)+1)
@@ -950,25 +988,25 @@ func (p *pool) PubSubChannels(pattern string) (channels []string, err error) {
 
 //region 1.8 Script
 
-func (p *pool) EvalOrSha(script string, keyCount int, keysAndArgs ...interface{}) (reply interface{}, err error) {
+func (p *pool) EvalOrSha(script *redigo.Script, keysAndArgs ...interface{}) (reply interface{}, err error) {
 	r := p.pool.Get()
 	defer r.Close()
-	s := redigo.NewScript(keyCount, script)
-	return s.Do(r, keysAndArgs...)
+
+	return script.Do(r, keysAndArgs...)
 }
 
-func (p *pool) EvalOrSha4Int64(script string, keyCount int, keysAndArgs ...interface{}) (res int64, err error) {
+func (p *pool) EvalOrSha4Int64(script *redigo.Script, keysAndArgs ...interface{}) (res int64, err error) {
 	r := p.pool.Get()
 	defer r.Close()
-	s := redigo.NewScript(keyCount, script)
-	return redigo.Int64(s.Do(r, keysAndArgs...))
+
+	return redigo.Int64(script.Do(r, keysAndArgs...))
 }
 
-func (p *pool) EvalOrSha4String(script string, keyCount int, keysAndArgs ...interface{}) (res string, err error) {
+func (p *pool) EvalOrSha4String(script *redigo.Script, keysAndArgs ...interface{}) (res string, err error) {
 	r := p.pool.Get()
 	defer r.Close()
-	s := redigo.NewScript(keyCount, script)
-	return String(s.Do(r, keysAndArgs...))
+
+	return String(script.Do(r, keysAndArgs...))
 }
 
 //endregion
@@ -976,8 +1014,13 @@ func (p *pool) EvalOrSha4String(script string, keyCount int, keysAndArgs ...inte
 //region 1.9 Transaction
 
 func (p *pool) Exec(multi Multi) (values []interface{}, err error) {
+	start := time.Now()
 	r := p.pool.Get()
-	defer r.Close()
+
+	defer func() {
+		ReleaseMulti(multi)
+		_ = r.Close()
+	}()
 
 	if multi.Kind() == Transaction {
 		_ = r.Send("MULTI")
@@ -988,11 +1031,27 @@ func (p *pool) Exec(multi Multi) (values []interface{}, err error) {
 	}
 
 	if multi.Kind() == Pipeline {
-		return redigo.Values(r.Do(""))
+		values, err = redigo.Values(r.Do(""))
+		if err != nil {
+			Error("do redis pipeline failed",
+				zaplogger.Addr(base.Bytes2String(p.id)),
+				zaplogger.Error(err),
+				zaplogger.Duration(time.Since(start)),
+			)
+		}
+		return
 	}
 
-	ReleaseMulti(multi)
-	return redigo.Values(r.Do("EXEC"))
+	values, err = redigo.Values(r.Do("EXEC"))
+	if err != nil {
+		Error("do redis multi failed",
+			zaplogger.Addr(base.Bytes2String(p.id)),
+			zaplogger.Error(err),
+			zaplogger.Duration(time.Since(start)),
+		)
+	}
+
+	return
 }
 
 //endregion
@@ -1016,7 +1075,7 @@ func (p *pool) Release(key string, token int64) (ok bool, err error) {
 	var (
 		suc int64
 	)
-	suc, err = p.EvalOrSha4Int64(delLock, 1, fmt.Sprintf(lockFormat, key), token)
+	suc, err = p.EvalOrSha4Int64(delLockScript, fmt.Sprintf(lockFormat, key), token)
 	return suc == 1, err
 }
 

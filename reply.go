@@ -1,12 +1,33 @@
 package gedis
 
 import (
+	"errors"
 	"fmt"
 
 	redigo "github.com/garyburd/redigo/redis"
 	"github.com/grpc-boot/base"
 	"github.com/shopspring/decimal"
 )
+
+func BytesMap(result interface{}, err error) (map[string][]byte, error) {
+	values, err := redigo.Values(result, err)
+	if err != nil {
+		return nil, err
+	}
+	if len(values)%2 != 0 {
+		return nil, errors.New("redigo: BytesMap expects even number of values result")
+	}
+	m := make(map[string][]byte, len(values)/2)
+	for i := 0; i < len(values); i += 2 {
+		key, okKey := values[i].([]byte)
+		value, okValue := values[i+1].([]byte)
+		if !okKey || !okValue {
+			return nil, errors.New("redigo: BytesMap key not a bulk string value")
+		}
+		m[string(key)] = value
+	}
+	return m, nil
+}
 
 // String 转换为String
 func String(reply interface{}, err error) (string, error) {
