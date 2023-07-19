@@ -47,15 +47,15 @@ var (
    `)
 )
 
-func (p *pool) GetToken(key string, current int64, capacity, rate, reqNum, keyTimeoutSecond int) (ok bool, err error) {
+func (mp *myPool) GetToken(key string, current int64, capacity, rate, reqNum, keyTimeoutSecond int) (ok bool, err error) {
 	var (
 		res int64
 	)
-	res, err = p.EvalOrSha4Int64(tokenLimitScript, key, capacity, current, rate, reqNum, keyTimeoutSecond)
+	res, err = mp.EvalOrSha4Int64(tokenLimitScript, key, capacity, current, rate, reqNum, keyTimeoutSecond)
 	return res == 1, err
 }
 
-func (p *pool) SecondLimitByToken(key string, limit int, reqNum int) (ok bool, err error) {
+func (mp *myPool) SecondLimitByToken(key string, limit int, reqNum int) (ok bool, err error) {
 	var capacity int
 	if limit < 8 {
 		capacity = 2 * limit
@@ -63,64 +63,64 @@ func (p *pool) SecondLimitByToken(key string, limit int, reqNum int) (ok bool, e
 		capacity = int(1.25 * float32(limit))
 	}
 
-	return p.GetToken(key, time.Now().Unix(), capacity, limit, reqNum, 5)
+	return mp.GetToken(key, time.Now().Unix(), capacity, limit, reqNum, 5)
 }
 
-func (p *pool) SecondLimitByTime(key string, limit int, reqNum int) (ok bool, err error) {
+func (mp *myPool) SecondLimitByTime(key string, limit int, reqNum int) (ok bool, err error) {
 	key = fmt.Sprintf(timeLimitKeyFormat, key, time.Now().Format("150405"))
 
-	newVal, err := p.IncrBy(key, reqNum)
+	newVal, err := mp.IncrBy(key, reqNum)
 	if err != nil {
 		return false, err
 	}
 
 	if newVal == int64(reqNum) {
-		_, _ = p.Expire(key, 10)
+		_, _ = mp.Expire(key, 10)
 	}
 
 	return newVal <= int64(limit), err
 }
 
-func (p *pool) MinuteLimitByTime(key string, limit int, reqNum int) (ok bool, err error) {
+func (mp *myPool) MinuteLimitByTime(key string, limit int, reqNum int) (ok bool, err error) {
 	key = fmt.Sprintf(timeLimitKeyFormat, key, time.Now().Format("1504"))
 
-	newVal, err := p.IncrBy(key, reqNum)
+	newVal, err := mp.IncrBy(key, reqNum)
 	if err != nil {
 		return false, err
 	}
 
 	if newVal == int64(reqNum) {
-		_, _ = p.Expire(key, 600)
+		_, _ = mp.Expire(key, 600)
 	}
 
 	return newVal <= int64(limit), err
 }
 
-func (p *pool) HourLimitByTime(key string, limit int, reqNum int) (ok bool, err error) {
+func (mp *myPool) HourLimitByTime(key string, limit int, reqNum int) (ok bool, err error) {
 	key = fmt.Sprintf(timeLimitKeyFormat, key, time.Now().Format("15"))
 
-	newVal, err := p.IncrBy(key, reqNum)
+	newVal, err := mp.IncrBy(key, reqNum)
 	if err != nil {
 		return false, err
 	}
 
 	if newVal == int64(reqNum) {
-		_, _ = p.Expire(key, 3680)
+		_, _ = mp.Expire(key, 3680)
 	}
 
 	return newVal <= int64(limit), err
 }
 
-func (p *pool) DayLimitByTime(key string, limit int, reqNum int) (ok bool, err error) {
+func (mp *myPool) DayLimitByTime(key string, limit int, reqNum int) (ok bool, err error) {
 	key = fmt.Sprintf(timeLimitKeyFormat, key, time.Now().Format("20060102"))
 
-	newVal, err := p.IncrBy(key, reqNum)
+	newVal, err := mp.IncrBy(key, reqNum)
 	if err != nil {
 		return false, err
 	}
 
 	if newVal == int64(reqNum) {
-		_, _ = p.Expire(key, 86400)
+		_, _ = mp.Expire(key, 86400)
 	}
 
 	return newVal <= int64(limit), err

@@ -22,7 +22,7 @@ type Location struct {
 //region 1.6 Geo
 
 // GeoAdd redis命令
-func (p *pool) GeoAdd(key string, longitude, latitude float64, member interface{}, args ...interface{}) (createNum int, err error) {
+func (mp *myPool) GeoAdd(key string, longitude, latitude float64, member interface{}, args ...interface{}) (createNum int, err error) {
 	var (
 		params = make([]interface{}, len(args)+4)
 	)
@@ -36,11 +36,11 @@ func (p *pool) GeoAdd(key string, longitude, latitude float64, member interface{
 		params[index+4] = args[index]
 	}
 
-	return redigo.Int(p.Do("GEOADD", params...))
+	return redigo.Int(mp.Do("GEOADD", params...))
 }
 
 // GeoHash redis命令
-func (p *pool) GeoHash(key string, members ...interface{}) (hashList []string, err error) {
+func (mp *myPool) GeoHash(key string, members ...interface{}) (hashList []string, err error) {
 	var (
 		args = make([]interface{}, len(members)+1)
 	)
@@ -50,21 +50,21 @@ func (p *pool) GeoHash(key string, members ...interface{}) (hashList []string, e
 		args[index+1] = members[index]
 	}
 
-	return redigo.Strings(p.Do("GEOHASH", args...))
+	return redigo.Strings(mp.Do("GEOHASH", args...))
 }
 
 // GeoDel redis命令
-func (p *pool) GeoDel(key string, members ...interface{}) (removeNum int, err error) {
-	return p.ZRem(key, members)
+func (mp *myPool) GeoDel(key string, members ...interface{}) (removeNum int, err error) {
+	return mp.ZRem(key, members)
 }
 
 // GeoDist redis命令
-func (p *pool) GeoDist(key string, member1, member2 interface{}, unit string) (distance string, err error) {
-	return String(p.Do("GEODIST", key, member1, member2, unit))
+func (mp *myPool) GeoDist(key string, member1, member2 interface{}, unit string) (distance string, err error) {
+	return String(mp.Do("GEODIST", key, member1, member2, unit))
 }
 
 // GeoPos redis命令
-func (p *pool) GeoPos(key string, members ...interface{}) (positionList []Position, err error) {
+func (mp *myPool) GeoPos(key string, members ...interface{}) (positionList []Position, err error) {
 	var (
 		args = make([]interface{}, len(members)+1)
 	)
@@ -74,33 +74,33 @@ func (p *pool) GeoPos(key string, members ...interface{}) (positionList []Positi
 		args[index+1] = members[index]
 	}
 
-	return Positions(p.Do("GEOPOS", args...))
+	return Positions(mp.Do("GEOPOS", args...))
 }
 
 // GeoRadius redis命令
-func (p *pool) GeoRadius(key string, longitude, latitude float64, radius interface{}, unit string, count int, sort string) (locationList []Location, err error) {
+func (mp *myPool) GeoRadius(key string, longitude, latitude float64, radius interface{}, unit string, count int, sort string) (locationList []Location, err error) {
 	if sort == "" {
 		sort = "ASC"
 	}
 
 	if count == 0 {
-		return Locations(p.Do("GEORADIUS", key, longitude, latitude, radius, unit, "WITHCOORD", "WITHHASH", "WITHDIST", sort))
+		return Locations(mp.Do("GEORADIUS", key, longitude, latitude, radius, unit, "WITHCOORD", "WITHHASH", "WITHDIST", sort))
 	}
 
-	return Locations(p.Do("GEORADIUS", key, longitude, latitude, radius, unit, "WITHCOORD", "WITHHASH", "WITHDIST", "COUNT", count, sort))
+	return Locations(mp.Do("GEORADIUS", key, longitude, latitude, radius, unit, "WITHCOORD", "WITHHASH", "WITHDIST", "COUNT", count, sort))
 }
 
 // GeoRadiusByMember redis命令
-func (p *pool) GeoRadiusByMember(key string, member interface{}, radius interface{}, unit string, count int, sort string) (locationList []Location, err error) {
+func (mp *myPool) GeoRadiusByMember(key string, member interface{}, radius interface{}, unit string, count int, sort string) (locationList []Location, err error) {
 	if sort == "" {
 		sort = "ASC"
 	}
 
 	if count == 0 {
-		return Locations(p.Do("GEORADIUSBYMEMBER", key, member, radius, unit, "WITHCOORD", "WITHHASH", "WITHDIST", sort))
+		return Locations(mp.Do("GEORADIUSBYMEMBER", key, member, radius, unit, "WITHCOORD", "WITHHASH", "WITHDIST", sort))
 	}
 
-	return Locations(p.Do("GEORADIUSBYMEMBER", key, member, radius, unit, "WITHCOORD", "WITHHASH", "WITHDIST", "COUNT", count, sort))
+	return Locations(mp.Do("GEORADIUSBYMEMBER", key, member, radius, unit, "WITHCOORD", "WITHHASH", "WITHDIST", "COUNT", count, sort))
 
 }
 

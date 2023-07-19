@@ -10,11 +10,6 @@ var (
 	ErrOptionEmpty = errors.New(`redis option empty`)
 )
 
-type GroupOption struct {
-	Option       Option `yaml:"option" json:"option"`
-	VirtualCount int    `yaml:"virtualCount" json:"virtualCount"`
-}
-
 type Group interface {
 	Get(key interface{}) (p Pool, err error)
 	Index(index int) (p Pool, err error)

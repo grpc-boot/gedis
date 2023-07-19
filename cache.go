@@ -30,7 +30,7 @@ func (i *Item) Hit(timeoutSecond int64, current int64) bool {
 	return i.UpdatedAt+timeoutSecond > current
 }
 
-func (p *pool) updateCache(key string, item *Item, current int64, handler Handler) (err error) {
+func (mp *myPool) updateCache(key string, item *Item, current int64, handler Handler) (err error) {
 	value, err := handler()
 	if err != nil {
 		Error("cache exec handler failed",
@@ -53,14 +53,14 @@ func (p *pool) updateCache(key string, item *Item, current int64, handler Handle
 		m.Expire(key, cacheTimeoutSecond)
 
 		var res []interface{}
-		res, err = p.Exec(m)
+		res, err = mp.Exec(m)
 		if len(res) > 2 {
 			switch mc := res[1].(type) {
 			case int64:
 				item.UpdatedCount = mc
 			case redigo.Error:
 				if strings.Contains(mc.Error(), overflowFlag) {
-					_, err = p.HSet(key, "updated_count", 0)
+					_, err = mp.HSet(key, "updated_count", 0)
 				}
 			}
 		}
@@ -70,31 +70,31 @@ func (p *pool) updateCache(key string, item *Item, current int64, handler Handle
 }
 
 // CacheRemove 设置缓存过期的方式移除缓存
-func (p *pool) CacheRemove(key string) (ok bool, err error) {
+func (mp *myPool) CacheRemove(key string) (ok bool, err error) {
 	key = fmt.Sprintf(cacheKeyFormat, key)
-	_, err = p.HSet(key, "updated_at", 0)
+	_, err = mp.HSet(key, "updated_at", 0)
 	return err == nil, err
 }
 
 // CacheGet 通用缓存
-func (p *pool) CacheGet(key string, current, timeoutSecond int64, handler Handler) (value []byte, err error) {
-	item, err := p.CacheGetItem(key, current, timeoutSecond, handler)
+func (mp *myPool) CacheGet(key string, current, timeoutSecond int64, handler Handler) (value []byte, err error) {
+	item, err := mp.CacheGetItem(key, current, timeoutSecond, handler)
 	return item.Value, err
 }
 
 // CacheGetItem 通用缓存
-func (p *pool) CacheGetItem(key string, current, timeoutSecond int64, handler Handler) (item Item, err error) {
+func (mp *myPool) CacheGetItem(key string, current, timeoutSecond int64, handler Handler) (item Item, err error) {
 	var redisValue map[string][]byte
 
 	key = fmt.Sprintf(cacheKeyFormat, key)
-	redisValue, err = p.HGetAllBytes(key)
+	redisValue, err = mp.HGetAllBytes(key)
 	if err != nil {
 		return
 	}
 
 	//redis中没有数据
 	if redisValue == nil {
-		err = p.updateCache(key, &item, current, handler)
+		err = mp.updateCache(key, &item, current, handler)
 		return item, err
 	}
 
@@ -113,7 +113,7 @@ func (p *pool) CacheGetItem(key string, current, timeoutSecond int64, handler Ha
 
 	val, ok := redisValue["value"]
 	if item.UpdatedAt == 0 || !ok {
-		err = p.updateCache(key, &item, current, handler)
+		err = mp.updateCache(key, &item, current, handler)
 		return item, err
 	}
 
@@ -126,16 +126,16 @@ func (p *pool) CacheGetItem(key string, current, timeoutSecond int64, handler Ha
 
 	//-------------------缓存失效-----------------------
 	//去拿锁
-	token, _ := p.Acquire(key, lockTimeoutSecond)
+	token, _ := mp.Acquire(key, lockTimeoutSecond)
 	//未获得锁
 	if token == 0 {
 		return item, nil
 	}
 
 	// 获得锁
-	err = p.updateCache(key, &item, current, handler)
+	err = mp.updateCache(key, &item, current, handler)
 	if err == nil {
-		_, _ = p.Release(key, token)
+		_, _ = mp.Release(key, token)
 	}
 
 	return item, err
