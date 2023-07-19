@@ -269,24 +269,27 @@ import (
 
 func main() {
 	option := gedis.Option{
-		Host:            "127.0.0.1",
-		Port:            6379,
-		Auth:            "",
-		Db:              0,
-		MaxConnLifetime: 600, //单位秒
-		MaxIdle:         10,
-		MaxActive:       20,
-		ReadTimeout:     300, //单位毫秒
-		WriteTimeout:    0,   //单位毫秒
+		Host:                  "127.0.0.1",
+		Port:                  6379,
+		Auth:                  "",
+		Db:                    0,
+		MaxConnLifetimeSecond: 600, //单位秒
+		MaxIdle:               10,
+		MaxActive:             20,
+		ReadTimeout:           300, //单位毫秒
+		WriteTimeout:          0,   //单位毫秒
 	}
 
 	pl := gedis.NewPool(option)
-	var key = `t_cache`
+	var (
+		key     = `t_cache`
+		current = time.Now().Unix()
+	)
 
-	item, err := pl.CacheGet(key, 60, func() []byte {
+	item, err := pl.CacheGet(key, current, 60, func() (value []byte, err error) {
 		//模拟耗时
 		time.Sleep(1)
-		return []byte(time.Now().String())
+		return []byte(time.Now().String()), nil
 	})
 
 	if err != nil {
@@ -295,10 +298,10 @@ func main() {
 
 	log.Printf("%+v\n", item)
 
-	item, err = pl.CacheGet(key, 60, func() []byte {
+	item, err = pl.CacheGet(key, current, 60, func() (value []byte, err error) {
 		//模拟耗时
 		time.Sleep(1)
-		return []byte(time.Now().String())
+		return []byte(time.Now().String()), nil
 	})
 
 	if err != nil {
