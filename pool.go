@@ -190,7 +190,8 @@ type Pool interface {
 	//--------------------Lock/Limit/Cache---------------------------
 	Acquire(key string, timeoutSecond int) (token int64, err error)
 	Release(key string, token int64) (ok bool, err error)
-	CacheGet(key string, current, timeoutSecond int64, handler Handler) (item Item, err error)
+	CacheGet(key string, current, timeoutSecond int64, handler Handler) (value []byte, err error)
+	CacheGetItem(key string, current, timeoutSecond int64, handler Handler) (item Item, err error)
 	CacheRemove(key string) (ok bool, err error)
 	GetToken(key string, current int64, capacity, rate, reqNum, keyTimeoutSecond int) (ok bool, err error)
 	SecondLimitByToken(key string, limit int, reqNum int) (ok bool, err error)

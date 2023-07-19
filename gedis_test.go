@@ -843,34 +843,32 @@ func TestPool_CacheGet(t *testing.T) {
 	}
 
 	var (
-		item Item
-		key  = `test_cache`
+		val     []byte
+		key     = `test_cache`
+		current = time.Now().Unix()
 	)
 
-	item, err = pl.CacheGet(key, 10, func() []byte {
+	val, err = pl.CacheGet(key, current, 10, func() (value []byte, err error) {
 		time.Sleep(time.Second * 2)
-		return []byte(time.Now().String())
+		return []byte(time.Now().String()), nil
 	})
 
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	t.Logf("item:%+v value:%s \n", item, base.Bytes2String(item.Value))
+	t.Logf("value:%s \n", val)
 
-	item, err = pl.CacheGet(key, 10, func() []byte {
+	val, err = pl.CacheGet(key, current, 10, func() (value []byte, err error) {
 		time.Sleep(time.Second)
-		return []byte(time.Now().String())
+		return []byte(time.Now().String()), nil
 	})
 
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if !item.Hit {
-		t.Fatalf("want true, got %v\n", item.Hit)
-	}
-	t.Logf("item:%+v value:%s \n", item, base.Bytes2String(item.Value))
+	t.Logf("value:%s \n", val)
 
 	ok, err := pl.CacheRemove(key)
 	if err != nil {
@@ -881,20 +879,16 @@ func TestPool_CacheGet(t *testing.T) {
 		t.Fatalf("want true, got %v\n", ok)
 	}
 
-	item, err = pl.CacheGet(key, 10, func() []byte {
+	val, err = pl.CacheGet(key, current, 10, func() (value []byte, err error) {
 		time.Sleep(time.Second)
-		return []byte(time.Now().String())
+		return []byte(time.Now().String()), nil
 	})
 
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if item.Hit {
-		t.Fatalf("want false, got %v\n", item.Hit)
-	}
-
-	t.Logf("item:%+v value:%s \n", item, base.Bytes2String(item.Value))
+	t.Logf("value:%s \n", val)
 }
 
 func BenchmarkRedis_CacheGet(b *testing.B) {
@@ -907,20 +901,21 @@ func BenchmarkRedis_CacheGet(b *testing.B) {
 		key = `test_cache`
 	)
 
+	current := time.Now().Unix()
 	b.ResetTimer()
 
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			item, err := pl.CacheGet(key, 10, func() []byte {
+			value, err := pl.CacheGet(key, current, 100, func() (value []byte, err error) {
 				time.Sleep(time.Second)
-				return []byte(time.Now().String())
+				return []byte(time.Now().String()), nil
 			})
 
 			if err != nil {
 				b.Fatal(err)
 			}
 
-			if !item.Hit {
+			if len(value) == 0 {
 				b.Logf("not hit")
 			}
 		}

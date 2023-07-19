@@ -77,7 +77,13 @@ func (p *pool) CacheRemove(key string) (ok bool, err error) {
 }
 
 // CacheGet 通用缓存
-func (p *pool) CacheGet(key string, current, timeoutSecond int64, handler Handler) (item Item, err error) {
+func (p *pool) CacheGet(key string, current, timeoutSecond int64, handler Handler) (value []byte, err error) {
+	item, err := p.CacheGetItem(key, current, timeoutSecond, handler)
+	return item.Value, err
+}
+
+// CacheGetItem 通用缓存
+func (p *pool) CacheGetItem(key string, current, timeoutSecond int64, handler Handler) (item Item, err error) {
 	var redisValue map[string][]byte
 
 	key = fmt.Sprintf(cacheKeyFormat, key)
