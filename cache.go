@@ -55,11 +55,11 @@ func (mp *myPool) updateCache(key string, item *Item, current int64, handler Han
 		var res []interface{}
 		res, err = mp.Exec(m)
 		if len(res) > 2 {
-			switch mc := res[1].(type) {
+			switch uc := res[1].(type) {
 			case int64:
-				item.UpdatedCount = mc
+				item.UpdatedCount = uc
 			case redigo.Error:
-				if strings.Contains(mc.Error(), overflowFlag) {
+				if strings.Contains(uc.Error(), overflowFlag) {
 					_, err = mp.HSet(key, "updated_count", 0)
 				}
 			}
@@ -99,19 +99,19 @@ func (mp *myPool) CacheGetItem(key string, current, timeoutSecond int64, handler
 	}
 
 	//从redis中取值
-	if createAt, exists := redisValue["created_at"]; exists {
-		item.CreatedAt = base.Bytes2Int64(createAt)
-	}
+	val, ok := redisValue["value"]
+	//从redis中取值
+	if ok {
+		createdAt, _ := redisValue["created_at"]
+		updatedAt, _ := redisValue["updated_at"]
+		updatedCount, _ := redisValue["updated_count"]
 
-	if updatedAt, exists := redisValue["updated_at"]; exists {
+		item.Value = val
 		item.UpdatedAt = base.Bytes2Int64(updatedAt)
-	}
-
-	if updatedCount, exists := redisValue["updated_count"]; exists {
+		item.CreatedAt = base.Bytes2Int64(createdAt)
 		item.UpdatedCount = base.Bytes2Int64(updatedCount)
 	}
 
-	val, ok := redisValue["value"]
 	if item.UpdatedAt == 0 || !ok {
 		err = mp.updateCache(key, &item, current, handler)
 		return item, err

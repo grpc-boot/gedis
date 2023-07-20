@@ -1,6 +1,9 @@
 package gedis
 
+// go test -bench=. -benchmem -benchtime=20s
+
 import (
+	"fmt"
 	"log"
 	"math/rand"
 	"strconv"
@@ -36,6 +39,8 @@ type GOption struct {
 }
 
 func init() {
+	rand.Seed(time.Now().UnixNano())
+
 	default_pl = NewPool(option)
 	err := base.YamlDecodeFile("./app.yml", &groupOptions)
 	if err != nil {
@@ -917,6 +922,41 @@ func BenchmarkRedis_CacheGet(b *testing.B) {
 
 			if len(value) == 0 {
 				b.Logf("not hit")
+			}
+		}
+	})
+}
+
+func BenchmarkMyPool_LevelCache(b *testing.B) {
+	pl, err := g.Get(`test_cache`)
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	var (
+		keyFormat = `test_cache:%d`
+		max       = 100
+	)
+
+	for start := 0; start < max/2; start++ {
+		_, _ = pl.CacheGet(fmt.Sprintf(keyFormat, start), time.Now().Unix(), 3, func() (value []byte, err error) {
+			time.Sleep(time.Millisecond * 1)
+			return []byte(time.Now().String()), nil
+		})
+	}
+
+	current := time.Now().Unix()
+	b.ResetTimer()
+
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			_, err = pl.LevelCache(&DefaultLocalCache, fmt.Sprintf(keyFormat, rand.Intn(max/2)), current, 2, func() (value []byte, err error) {
+				time.Sleep(time.Millisecond * 10)
+				return []byte(time.Now().String()), nil
+			})
+
+			if err != nil {
+				b.Fatal(err)
 			}
 		}
 	})

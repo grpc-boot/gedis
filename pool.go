@@ -1,6 +1,8 @@
 package gedis
 
 import (
+	"sync"
+
 	redigo "github.com/garyburd/redigo/redis"
 	"github.com/grpc-boot/base"
 )
@@ -147,6 +149,7 @@ type Pool interface {
 	//--------------------Lock/Limit/Cache---------------------------
 	Acquire(key string, timeoutSecond int) (token int64, err error)
 	Release(key string, token int64) (ok bool, err error)
+	LevelCache(localCache *sync.Map, key string, current, timeoutSecond int64, handler Handler) (value []byte, err error)
 	CacheGet(key string, current, timeoutSecond int64, handler Handler) (value []byte, err error)
 	CacheGetItem(key string, current, timeoutSecond int64, handler Handler) (item Item, err error)
 	CacheRemove(key string) (ok bool, err error)

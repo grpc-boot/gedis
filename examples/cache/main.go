@@ -26,7 +26,7 @@ func main() {
 		current = time.Now().Unix()
 	)
 
-	item, err := pl.CacheGet(key, current, 60, func() (value []byte, err error) {
+	value, err := pl.CacheGet(key, current, 6, func() (value []byte, err error) {
 		//模拟耗时
 		time.Sleep(1)
 		return []byte(time.Now().String()), nil
@@ -36,9 +36,9 @@ func main() {
 		log.Fatalf("get cache err:%s", err.Error())
 	}
 
-	log.Printf("%+v\n", item)
+	log.Printf("%s\n", value)
 
-	item, err = pl.CacheGet(key, current, 60, func() (value []byte, err error) {
+	value, err = pl.LevelCache(&gedis.DefaultLocalCache, key, current, 6, func() (value []byte, err error) {
 		//模拟耗时
 		time.Sleep(1)
 		return []byte(time.Now().String()), nil
@@ -48,5 +48,5 @@ func main() {
 		log.Fatalf("get cache err:%s", err.Error())
 	}
 
-	log.Printf("%+v\n", item)
+	log.Printf("%s\n", value)
 }
