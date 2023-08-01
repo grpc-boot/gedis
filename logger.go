@@ -7,6 +7,7 @@ import (
 
 var (
 	Error = base.Error
+	Debug = base.Debug
 )
 
 type Log func(msg string, fields ...zap.Field)

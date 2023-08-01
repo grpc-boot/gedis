@@ -238,6 +238,10 @@ func (mp *myPool) Get(key string) (val string, err error) {
 	return redigo.String(mp.Do("GET", key))
 }
 
+func (mp *myPool) GetBytes(key string) (val []byte, err error) {
+	return redigo.Bytes(mp.Do("GET", key))
+}
+
 func (mp *myPool) MGet(keys ...string) (values []string, err error) {
 	var (
 		args = make([]interface{}, 0, len(keys))
@@ -264,6 +268,26 @@ func (mp *myPool) MGetMap(keys ...string) (keyValue map[string]string, err error
 	}
 
 	keyValue = make(map[string]string, len(values))
+	for index, key := range keys {
+		keyValue[key] = values[index]
+	}
+	return
+}
+
+func (mp *myPool) MGetBytesMap(keys ...string) (keyValue map[string][]byte, err error) {
+	var (
+		values [][]byte
+		args   = make([]interface{}, 0, len(keys))
+	)
+	for _, key := range keys {
+		args = append(args, key)
+	}
+	values, err = redigo.ByteSlices(mp.Do("MGET", args...))
+	if err != nil {
+		return nil, err
+	}
+
+	keyValue = make(map[string][]byte, len(values))
 	for index, key := range keys {
 		keyValue[key] = values[index]
 	}

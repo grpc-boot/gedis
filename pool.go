@@ -37,8 +37,10 @@ type Pool interface {
 	//-----------------String--------------------------
 	Append(key string, value interface{}) (strLength int, err error)
 	Get(key string) (val string, err error)
+	GetBytes(key string) (val []byte, err error)
 	MGet(keys ...string) (values []string, err error)
 	MGetMap(keys ...string) (keyValue map[string]string, err error)
+	MGetBytesMap(keys ...string) (keyValue map[string][]byte, err error)
 	MSet(key1 string, value1 interface{}, keyValues ...interface{}) (ok bool, err error)
 	MSetByMap(keyValues map[string]interface{}) (ok bool, err error)
 	Set(key string, value interface{}, args ...interface{}) (ok bool, err error)

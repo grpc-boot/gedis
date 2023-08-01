@@ -42,9 +42,9 @@ type Pong struct {
 type SubConn interface {
 	Close() error
 	Subscribe(channels ...interface{}) error
-	SubscribeChannel(ctx context.Context, size int, channels ...interface{}) (ch chan interface{}, err error)
+	SubscribeChannel(ctx context.Context, size int, channels ...interface{}) (ch <-chan interface{}, err error)
 	PSubscribe(channels ...interface{}) error
-	PSubscribeChannel(ctx context.Context, size int, channels ...interface{}) (ch chan interface{}, err error)
+	PSubscribeChannel(ctx context.Context, size int, channels ...interface{}) (ch <-chan interface{}, err error)
 	Unsubscribe(channels ...interface{}) error
 	PUnsubscribe(channels ...interface{}) error
 	Ping(data string) error
@@ -107,13 +107,13 @@ func (sc *subConn) Subscribe(channels ...interface{}) error {
 	return sc.conn.Flush()
 }
 
-func (sc *subConn) SubscribeChannel(ctx context.Context, size int, channels ...interface{}) (ch chan interface{}, err error) {
-	err = sc.Subscribe(channels...)
+func (sc *subConn) SubscribeChannel(ctx context.Context, size int, channels ...interface{}) (<-chan interface{}, error) {
+	err := sc.Subscribe(channels...)
 	if err != nil {
 		return nil, err
 	}
 
-	ch = make(chan interface{}, size)
+	ch := make(chan interface{}, size)
 
 	go func() {
 		tick := time.NewTicker(time.Second * 30)
@@ -149,7 +149,8 @@ func (sc *subConn) SubscribeChannel(ctx context.Context, size int, channels ...i
 			}
 		}
 	}()
-	return
+
+	return ch, nil
 }
 
 func (sc *subConn) PSubscribe(channels ...interface{}) error {
@@ -163,13 +164,13 @@ func (sc *subConn) PSubscribe(channels ...interface{}) error {
 	return sc.conn.Flush()
 }
 
-func (sc *subConn) PSubscribeChannel(ctx context.Context, size int, channels ...interface{}) (ch chan interface{}, err error) {
-	err = sc.PSubscribe(channels...)
+func (sc *subConn) PSubscribeChannel(ctx context.Context, size int, channels ...interface{}) (<-chan interface{}, error) {
+	err := sc.PSubscribe(channels...)
 	if err != nil {
 		return nil, err
 	}
 
-	ch = make(chan interface{}, size)
+	ch := make(chan interface{}, size)
 
 	go func() {
 		tick := time.NewTicker(time.Second * 30)
@@ -205,7 +206,8 @@ func (sc *subConn) PSubscribeChannel(ctx context.Context, size int, channels ...
 			}
 		}
 	}()
-	return
+
+	return ch, nil
 }
 
 func (sc *subConn) Unsubscribe(channels ...interface{}) error {
