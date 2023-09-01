@@ -3,6 +3,7 @@ package gedis
 import (
 	"context"
 	"fmt"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -190,6 +191,8 @@ func (c *Conf) watch(ctx context.Context) error {
 	}
 
 	go func() {
+		runtime.LockOSThread()
+
 		for {
 			msg, ok := <-ch
 
